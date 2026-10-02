@@ -1,14 +1,32 @@
-"""Application entry point for bootstrap verification."""
+"""Application bootstrap and entry point."""
 
 from app.core.config import settings
 from app.core.logging import logger
+from app.db.session import engine
+from app.db.base import Base
+from app.bot.bot import start_bot
+
+
+def init_database() -> None:
+    """Create all database tables if they do not exist."""
+    logger.info("Verifying and initializing database tables...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified.")
 
 
 def main() -> None:
-    """Run the initial bootstrap check."""
+    """Initialize core systems and run the bot application."""
     logger.info("Initializing %s...", settings.APP_NAME)
     logger.info("Environment: %s | Timezone: %s", settings.APP_ENV, settings.TIMEZONE)
-    logger.info("Core setup initialized successfully.")
+
+    # Initialize SQLite database
+    init_database()
+
+    # Start Telegram Bot if token is present
+    if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_BOT_TOKEN != "GAPGPTMASKTOKENavftnavyj1eX0X":
+        start_bot()
+    else:
+        logger.warning("TELEGRAM_BOT_TOKEN is not set. Bot polling skipped.")
 
 
 if __name__ == "__main__":
