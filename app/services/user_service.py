@@ -1,8 +1,11 @@
 """User management business logic and database interactions."""
 
+import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.db.base import User
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[User]:
@@ -45,3 +48,15 @@ def approve_user(db: Session, user_id: int) -> Optional[User]:
     db.commit()
     db.refresh(user)
     return user
+
+
+def reject_user(db: Session, user_id: int) -> Optional[int]:
+    """Reject and delete an unapproved user registration. Returns telegram_id if deleted."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+
+    telegram_id = user.telegram_id
+    db.delete(user)
+    db.commit()
+    return telegram_id
