@@ -134,3 +134,22 @@ async def user_approval_callback(update: Update, context: ContextTypes.DEFAULT_T
                     logger.error(f"Failed to notify user {target_tg_id}: {e}")
             else:
                 await query.edit_message_text("❌ کاربر مورد نظر در دیتابیس یافت نشد.")
+# app/bot/handlers.py (Append this function to the file)
+
+async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle the /ping command to verify bot health and responsiveness.
+    """
+    if not update.effective_user or not update.message:
+        return
+
+    db: Session = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, update.effective_user.id)
+        if not user or not user.is_active:
+            await update.message.reply_text("⛔ دسترسی شما فعال نشده است.")
+            return
+
+        await update.message.reply_text("🏓 Pong! ربات فعال و آماده خدمت‌رسانی است.")
+    finally:
+        db.close()
