@@ -1,8 +1,13 @@
 """Telegram bot application setup and router."""
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler
+
 from app.core.config import settings
-from app.bot.handlers import ping_command, start_command, user_approval_callback
+from app.bot.handlers import (
+    ping_command,
+    start_command,
+    user_approval_callback,
+)
 
 
 def build_bot_app() -> Application:
@@ -14,6 +19,17 @@ def build_bot_app() -> Application:
     app.add_handler(CommandHandler("ping", ping_command))
 
     # Callback query handlers for inline buttons
-    app.add_handler(CallbackQueryHandler(user_approval_callback, pattern=r"^(approve|reject)_\d+$"))
+    app.add_handler(
+        CallbackQueryHandler(
+            user_approval_callback,
+            pattern=r"^(approve|reject)_\d+$",
+        )
+    )
 
     return app
+
+
+def start_bot() -> None:
+    """Build the Telegram bot application and start polling."""
+    app = build_bot_app()
+    app.run_polling()
