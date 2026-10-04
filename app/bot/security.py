@@ -1,37 +1,35 @@
-"""Security gatekeeper decorators and utilities for Telegram handlers."""
+"""Security and access control decorators for Telegram Bot handlers."""
 
 from functools import wraps
-from typing import Callable, Any
+from typing import Any, Callable
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from app.core.config import settings
-from app.core.logging import logger
+from app.db.session import SessionLocal
+from app.services.user_service import get_user_by_telegram_id
 
 
-def restricted(func: Callable) -> Callable:
-    """Ensure handler is only executable by authorized Telegram user IDs.
+def is_user_allowed(telegram_id: int) -> bool:
+    """Check if the telegram user is the primary admin or an approved user."""
+    if telegram_id in settings.ALLOWED_USERS:
+        return True
 
-    Args:
-        func (Callable): Target Telegram update handler.
+    with SessionLocal() as session:
+        user = get_user_by_telegram_id(session, telegram_id)
+        return user is not None and user.is_approved
 
-    Returns:
-        Callable: Wrapped handler enforcing user ID verification.
-    """
 
+def restricted(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Ensure handler only executes for approved or admin users."""
     @wraps(func)
-    async def wrapped(update: Update, context: ContextTypes.DEFAULT_TYPE, *args: Any, **kwargs: Any) -> Any:
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args: Any, **kwargs: Any) -> Any:
         user = update.effective_user
-        if not user:
-            logger.warning("Unauthorized access attempt: No effective user found.")
-            return None
-
-        allowed_ids = settings.allowed_telegram_users
-        if allowed_ids and user.id not in allowed_ids:
-            logger.warning("Unauthorized access attempt by User ID: %s (%s)", user.id, user.username)
+        if not user or not is_user_allowed(user.id):
             if update.effective_message:
-                await update.effective_message.reply_text("⛔ دسترسی غیرمجاز. شناسه کاربری شما ثبت نشده است.")
+                await update.effective_message.reply_text(
+                    "⛔ دسترسی شما هنوز تایید نشده است. لطفاً منتظر تایید ادمین بمانید."
+                )
             return None
-
         return await func(update, context, *args, **kwargs)
-
-    return wrapped
+    return wrapper

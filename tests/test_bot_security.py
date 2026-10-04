@@ -1,45 +1,39 @@
-"""Security gatekeeper tests for Telegram interactions."""
+"""Tests for user authorization and access control."""
 
-from unittest.mock import AsyncMock, MagicMock
-import pytest
-from app.bot.security import restricted
+from app.bot.security import is_user_allowed
 from app.core.config import settings
+from app.db.session import SessionLocal
+from app.db.base import init_db
+from app.services.user_service import register_user, set_user_approval
 
 
-@pytest.mark.asyncio
-async def test_restricted_decorator_denies_unauthorized_user(monkeypatch):
-    """Ensure users not in allowed_telegram_users are blocked."""
-    monkeypatch.setattr(settings, "TELEGRAM_ALLOWED_USER_IDS", "1001, 1002")
-
-    mock_handler = AsyncMock()
-    protected_handler = restricted(mock_handler)
-
-    mock_update = MagicMock()
-    mock_update.effective_user.id = 9999  # Unauthorized ID
-    mock_update.effective_message.reply_text = AsyncMock()
-    mock_context = MagicMock()
-
-    await protected_handler(mock_update, mock_context)
-
-    # Handler must NOT be called
-    mock_handler.assert_not_called()
-    mock_update.effective_message.reply_text.assert_called_once()
+def test_admin_is_always_allowed() -> None:
+    """Verify that user in ALLOWED_USERS list is always allowed."""
+    admin_id = 999999
+    settings.ALLOWED_USERS = [admin_id]
+    assert is_user_allowed(admin_id) is True
 
 
-@pytest.mark.asyncio
-async def test_restricted_decorator_allows_authorized_user(monkeypatch):
-    """Ensure users in allowed_telegram_users are allowed."""
-    monkeypatch.setattr(settings, "TELEGRAM_ALLOWED_USER_IDS", "1001, 1002")
+def test_unapproved_user_is_not_allowed() -> None:
+    """Verify newly registered user cannot access before approval."""
+    init_db()
+    settings.ALLOWED_USERS = [999999]
+    user_id = 1234567
 
-    mock_handler = AsyncMock()
-    protected_handler = restricted(mock_handler)
+    with SessionLocal() as session:
+        register_user(session, telegram_id=user_id, username="testuser", first_name="Test", is_approved=False)
 
-    mock_update = MagicMock()
-    mock_update.effective_user.id = 1001  # Authorized ID
-    mock_update.effective_message.reply_text = AsyncMock()
-    mock_context = MagicMock()
+    assert is_user_allowed(user_id) is False
 
-    await protected_handler(mock_update, mock_context)
 
-    # Handler must be called
-    mock_handler.assert_called_once_with(mock_update, mock_context)
+def test_approved_user_is_allowed() -> None:
+    """Verify that once approved, user can access system."""
+    init_db()
+    settings.ALLOWED_USERS = [999999]
+    user_id = 7654321
+
+    with SessionLocal() as session:
+        register_user(session, telegram_id=user_id, username="cooluser", first_name="Cool", is_approved=False)
+        set_user_approval(session, telegram_id=user_id, approved=True)
+
+    assert is_user_allowed(user_id) is True
