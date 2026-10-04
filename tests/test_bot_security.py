@@ -1,39 +1,60 @@
-"""Tests for user authorization and access control."""
+"""Unit tests for bot security, user registration, and admin authorization."""
 
-from app.bot.security import is_user_allowed
+import pytest
 from app.core.config import settings
-from app.db.session import SessionLocal
-from app.db.base import init_db
-from app.services.user_service import register_user, set_user_approval
+from app.db.base import Base, SessionLocal, User, engine
+from app.services.user_service import approve_user, get_user_by_telegram_id, register_user
 
 
-def test_admin_is_always_allowed() -> None:
-    """Verify that user in ALLOWED_USERS list is always allowed."""
-    admin_id = 999999
-    settings.ALLOWED_USERS = [admin_id]
-    assert is_user_allowed(admin_id) is True
+@pytest.fixture(autouse=True)
+def clean_database():
+    """Ensure clean database schema for each test run."""
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+
+def test_admin_is_always_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify admin user ID defined in settings is recognized."""
+    admin_id = 123456789
+    monkeypatch.setattr(settings, "TELEGRAM_ALLOWED_USER_IDS", str(admin_id))
+    assert admin_id in settings.allowed_telegram_users
 
 
 def test_unapproved_user_is_not_allowed() -> None:
     """Verify newly registered user cannot access before approval."""
-    init_db()
-    settings.ALLOWED_USERS = [999999]
     user_id = 1234567
 
     with SessionLocal() as session:
-        register_user(session, telegram_id=user_id, username="testuser", first_name="Test", is_approved=False)
+        user = register_user(
+            db=session,
+            telegram_id=user_id,
+            username="testuser",
+            full_name="Test User",
+            role="user",
+        )
+        assert user.is_active is False
 
-    assert is_user_allowed(user_id) is False
+        fetched_user = get_user_by_telegram_id(session, user_id)
+        assert fetched_user is not None
+        assert fetched_user.is_active is False
 
 
 def test_approved_user_is_allowed() -> None:
-    """Verify that once approved, user can access system."""
-    init_db()
-    settings.ALLOWED_USERS = [999999]
+    """Verify that once approved, user active status is true."""
     user_id = 7654321
 
     with SessionLocal() as session:
-        register_user(session, telegram_id=user_id, username="cooluser", first_name="Cool", is_approved=False)
-        set_user_approval(session, telegram_id=user_id, approved=True)
+        user = register_user(
+            db=session,
+            telegram_id=user_id,
+            username="cooluser",
+            full_name="Cool User",
+            role="user",
+        )
+        assert user.is_active is False
 
-    assert is_user_allowed(user_id) is True
+        approved_user = approve_user(session, user.id)
+        assert approved_user is not None
+        assert approved_user.is_active is True
