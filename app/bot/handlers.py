@@ -15,7 +15,7 @@ from app.services.user_service import (
 logger = logging.getLogger(__name__)
 
 
-async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /start command, register user, and notify admin if approval is needed."""
     if not update.effective_user or not update.effective_message:
         return
@@ -76,7 +76,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 logger.error(f"Failed to notify admin {admin_id}: {e}")
 
 
-async def ping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Respond to /ping healthcheck command."""
     if not update.effective_message:
         return
@@ -134,22 +134,3 @@ async def user_approval_callback(update: Update, context: ContextTypes.DEFAULT_T
                     logger.error(f"Failed to notify user {target_tg_id}: {e}")
             else:
                 await query.edit_message_text("❌ کاربر مورد نظر در دیتابیس یافت نشد.")
-# app/bot/handlers.py (Append this function to the file)
-
-async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handle the /ping command to verify bot health and responsiveness.
-    """
-    if not update.effective_user or not update.message:
-        return
-
-    db: Session = SessionLocal()
-    try:
-        user = get_user_by_telegram_id(db, update.effective_user.id)
-        if not user or not user.is_active:
-            await update.message.reply_text("⛔ دسترسی شما فعال نشده است.")
-            return
-
-        await update.message.reply_text("🏓 Pong! ربات فعال و آماده خدمت‌رسانی است.")
-    finally:
-        db.close()
