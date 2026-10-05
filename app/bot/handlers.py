@@ -1,10 +1,14 @@
-"""Telegram bot command handlers and message processing logic."""
+"""
+Telegram bot command handlers and message processing logic.
+Integrates user registration, access control, and Life OS forum topics.
+"""
 
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from app.core.config import settings
 from app.db.base import SessionLocal
+from app.services.telegram_topics import topic_service
 from app.services.user_service import (
     approve_user,
     get_user_by_telegram_id,
@@ -16,11 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle the /start command, register user, and notify admin if approval is needed."""
+    """
+    Handle the /start command.
+    Checks authorization and manages forum topic initialization if run in a forum supergroup.
+    """
     if not update.effective_user or not update.effective_message:
         return
 
     tg_user = update.effective_user
+    chat = update.effective_chat
     full_name = tg_user.full_name or tg_user.first_name
     username = tg_user.username or "ندارد"
     is_admin = tg_user.id in settings.allowed_telegram_users
@@ -37,43 +45,73 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 role=role,
             )
 
-        if is_admin or user.is_active:
+        if not (is_admin or user.is_active):
+            # Regular unapproved user
             await update.effective_message.reply_text(
-                f"سلام {full_name} عزیز! 👑\nبه سیستم عامل مدیریت فردی Mehr خوش آمدید."
+                "حساب شما هنوز توسط ادمین تایید نشده است. لطفاً منتظر بمانید."
             )
+
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "✅ تایید", callback_data=f"approve_{user.id}"
+                        ),
+                        InlineKeyboardButton(
+                            "❌ رد", callback_data=f"reject_{user.id}"
+                        ),
+                    ]
+                ]
+            )
+
+            admin_message = (
+                "👤 درخواست دسترسی جدید\n\n"
+                f"نام: {full_name}\n"
+                f"Username: @{username}\n"
+                f"Telegram ID: {tg_user.id}\n"
+                f"User ID: {user.id}"
+            )
+
+            for admin_id in settings.allowed_telegram_users:
+                try:
+                    await context.bot.send_message(
+                        chat_id=admin_id,
+                        text=admin_message,
+                        reply_markup=keyboard,
+                    )
+                except Exception as e:
+                    logger.error("Failed to notify admin %s: %s", admin_id, e)
             return
 
-        # Regular unapproved user
+    # Authorized user logic
+    if chat and chat.is_forum:
         await update.effective_message.reply_text(
-            "حساب شما هنوز توسط ادمین تایید نشده است. لطفاً منتظر بمانید."
+            "⚡️ در حال آماده‌سازی و ساخت تاپیک‌های اختصاصی Life OS..."
         )
-
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("✅ تایید", callback_data=f"approve_{user.id}"),
-                    InlineKeyboardButton("❌ رد", callback_data=f"reject_{user.id}"),
-                ]
-            ]
+        try:
+            threads = await topic_service.ensure_topics(
+                bot=context.bot, chat_id=chat.id
+            )
+            report_msg = "✅ ساختار Life OS با موفقیت راه‌اندازی شد:\n\n"
+            for name, tid in threads.items():
+                report_msg += f"▫️ تاپیک {name}: شناسه `{tid}`\n"
+            await update.effective_message.reply_text(
+                report_msg, parse_mode="Markdown"
+            )
+        except Exception as exc:
+            await update.effective_message.reply_text(
+                f"❌ خطا در ساخت تاپیک‌ها: {exc}\n"
+                "لطفاً مطمئن شوید ربات دسترسی ادمین (Manage Topics) دارد."
+            )
+    else:
+        text = (
+            f"سلام {full_name} عزیز! 👑\nبه سیستم عامل مدیریت فردی خوش آمدید.\n\n"
+            "💡 برای راه‌اندازی دسته‌بندی موضوعی:\n"
+            "۱. یک سوپرگروه با قابلیت Topics ایجاد کنید.\n"
+            "۲. ربات را در آن ادمین با دسترسی کامل کنید.\n"
+            "۳. دستور `/start` را در آن گروه ارسال کنید."
         )
-
-        admin_message = (
-            "👤 درخواست دسترسی جدید\n\n"
-            f"نام: {full_name}\n"
-            f"Username: @{username}\n"
-            f"Telegram ID: {tg_user.id}\n"
-            f"User ID: {user.id}"
-        )
-
-        for admin_id in settings.allowed_telegram_users:
-            try:
-                await context.bot.send_message(
-                    chat_id=admin_id,
-                    text=admin_message,
-                    reply_markup=keyboard,
-                )
-            except Exception as e:
-                logger.error(f"Failed to notify admin {admin_id}: {e}")
+        await update.effective_message.reply_text(text)
 
 
 async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -83,7 +121,9 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.effective_message.reply_text("🏓 پونگ! سیستم فعال و آنلاین است.")
 
 
-async def user_approval_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def user_approval_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle callback queries for approving or rejecting user registrations."""
     query = update.callback_query
     if not query or not query.data:
@@ -115,7 +155,11 @@ async def user_approval_callback(update: Update, context: ContextTypes.DEFAULT_T
                         text="🎉 حساب کاربری شما با موفقیت تایید شد! اکنون می‌توانید از سیستم استفاده کنید.",
                     )
                 except Exception as e:
-                    logger.error(f"Failed to notify user {approved_user.telegram_id}: {e}")
+                    logger.error(
+                        "Failed to notify user %s: %s",
+                        approved_user.telegram_id,
+                        e,
+                    )
             else:
                 await query.edit_message_text("❌ کاربر مورد نظر در دیتابیس یافت نشد.")
 
@@ -131,6 +175,6 @@ async def user_approval_callback(update: Update, context: ContextTypes.DEFAULT_T
                         text="❌ متأسفانه درخواست دسترسی شما به ربات تایید نشد.",
                     )
                 except Exception as e:
-                    logger.error(f"Failed to notify user {target_tg_id}: {e}")
+                    logger.error("Failed to notify user %s: %s", target_tg_id, e)
             else:
                 await query.edit_message_text("❌ کاربر مورد نظر در دیتابیس یافت نشد.")

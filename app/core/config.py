@@ -1,3 +1,4 @@
+# app/core/config.py
 """Application settings and configuration management."""
 
 from typing import List
@@ -10,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
     APP_NAME: str = "Mehr Life Time"
@@ -22,11 +23,13 @@ class Settings(BaseSettings):
     TELEGRAM_ALLOWED_USER_IDS: str = ""
     ALLOWED_USERS: List[int] = []
 
-    DATABASE_URL: str = "sqlite:///./mehr_life_time.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///data/mehr_life_time.db"
 
+    # LLM Settings
     LLM_PROVIDER: str = "ollama"
     LLM_BASE_URL: str = "http://localhost:11434"
     LLM_MODEL_NAME: str = "llama3"
+    LLM_TIMEOUT: float = 90.0
 
     @property
     def allowed_telegram_users(self) -> List[int]:
