@@ -12,6 +12,22 @@ from app.modules.onboarding.models import (
 from app.services.llm import LLMService
 from app.services.profile_service import ProfileService
 
+ONBOARDING_SYSTEM_PROMPT = """
+تو یک دستیار هوشمند، حرفه‌ای و صمیمی برای ستاپ اولیه سیستم عامل فردی (Mehr Life Time) هستی.
+وظیفه تو شناخت سبک زندگی، شغل، ساعات کاری، الگوی خواب و ترجیحات کاربر است.
+
+قوانین رفتار:
+1. در هر پیام فقط یک یا نهایتاً دو سوال کوتاه، دقیق و هدفمند بپرس تا کاربر خسته نشود.
+2. پاسخ‌ها را به زبان فارسی روان، محترمانه و خلاصه بنویس.
+3. زمینه‌هایی که باید پوشش دهی:
+   - شغل، تخصص یا زمینه تحصیلی
+   - بازه ساعات کاری یا ساعات اوج تمرکز
+   - بازه معمول خواب و بیداری
+   - ترجیحات یا محدودیت‌های مهم در طول روز
+4. پس از دریافت هر پاسخ از کاربر، بازخورد کوتاهی بده و مرحله بعد را بپرس.
+5. وقتی تمام اطلاعات اساسی پوشش داده شد، خلاصه کوتاهی از شناخت خود ارائه بده و بگو آماده تحلیل و ثبت نهایی هستی.
+"""
+
 
 class OnboardingService:
     """Manage onboarding sessions for users."""
@@ -109,6 +125,40 @@ class OnboardingService:
             .order_by(OnboardingMessage.created_at.asc())
             .all()
         )
+
+    async def process_user_message(
+        self,
+        user_id: int,
+        content: str,
+        llm: LLMService | None = None,
+    ) -> str:
+        """
+        Record the user's message in the active onboarding session, generate an AI reply,
+        store it, and return the response text.
+        """
+        session = self.get_or_create_active_session(user_id)
+        self.add_user_message(session_id=session.id, content=content)
+
+        history_messages = self.get_messages(session.id)
+        prompt_payload = [
+            {"role": "system", "content": ONBOARDING_SYSTEM_PROMPT}
+        ]
+        for msg in history_messages:
+            prompt_payload.append(
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                }
+            )
+
+        client = llm or LLMService()
+        reply_text = await client.generate_response(
+            messages=prompt_payload,
+            temperature=0.7,
+        )
+
+        self.add_assistant_message(session_id=session.id, content=reply_text)
+        return reply_text
 
     async def extract_profile(self, session_id: int):
         """Extract structured profile data from the onboarding conversation."""
