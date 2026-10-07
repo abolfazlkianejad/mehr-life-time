@@ -38,9 +38,13 @@ def register_user(
     return user
 
 
-def approve_user(db: Session, user_id: int) -> Optional[User]:
-    """Approve a registered user by primary key ID, granting bot access."""
-    user = db.query(User).filter(User.id == user_id).first()
+def approve_user(db: Session, user_identifier: int) -> Optional[User]:
+    """Approve a user by either internal user.id or telegram_id."""
+    user = (
+        db.query(User)
+        .filter((User.id == user_identifier) | (User.telegram_id == user_identifier))
+        .first()
+    )
     if not user:
         return None
 
@@ -50,13 +54,17 @@ def approve_user(db: Session, user_id: int) -> Optional[User]:
     return user
 
 
-def reject_user(db: Session, user_id: int) -> Optional[int]:
-    """Reject and delete an unapproved user registration. Returns telegram_id if deleted."""
-    user = db.query(User).filter(User.id == user_id).first()
+def reject_user(db: Session, user_identifier: int) -> Optional[int]:
+    """Reject and delete a user by either internal user.id or telegram_id."""
+    user = (
+        db.query(User)
+        .filter((User.id == user_identifier) | (User.telegram_id == user_identifier))
+        .first()
+    )
     if not user:
         return None
 
-    telegram_id = user.telegram_id
+    deleted_tg_id = user.telegram_id
     db.delete(user)
     db.commit()
-    return telegram_id
+    return deleted_tg_id
