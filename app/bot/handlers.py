@@ -36,6 +36,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     with SessionLocal() as db:
         db_user = get_user_by_telegram_id(db, telegram_id)
 
+        # Logic for new users (Registration)
         if not db_user:
             db_user = register_user(
                 db=db,
@@ -74,9 +75,34 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
             return
 
+        # Logic for existing, but inactive users (Re-notification)
         if not db_user.is_active:
+            admin_msg = (
+                f"⚠️ یادآوری: کاربر {full_name} (@{username if username else 'ندارد'}) "
+                f"مجدداً درخواست دسترسی کرده است.\n"
+                f"شناسه تلگرام: {telegram_id}"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "تایید دسترسی", callback_data=f"approve_{telegram_id}"
+                    ),
+                    InlineKeyboardButton(
+                        "رد دسترسی", callback_data=f"reject_{telegram_id}"
+                    ),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            if settings.TELEGRAM_ADMIN_CHAT_ID:
+                await context.bot.send_message(
+                    chat_id=settings.TELEGRAM_ADMIN_CHAT_ID,
+                    text=admin_msg,
+                    reply_markup=reply_markup,
+                )
+
             await update.message.reply_text(
-                "حساب کاربری شما هنوز تایید نشده یا غیرفعال است. لطفاً منتظر تایید ادمین بمانید."
+                "حساب کاربری شما هنوز تایید نشده است. درخواست شما مجدداً برای ادمین ارسال شد."
             )
             return
 
