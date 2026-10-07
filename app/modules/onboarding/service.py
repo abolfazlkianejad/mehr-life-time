@@ -6,10 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import UserProfile
 from app.modules.onboarding.extraction import ProfileExtractionService
-from app.modules.onboarding.models import (
-    OnboardingMessage,
-    OnboardingSession,
-)
+from app.modules.onboarding.models import OnboardingMessage, OnboardingSession
 from app.services.llm import LLMService
 from app.services.profile_service import ProfileService
 
@@ -174,16 +171,28 @@ class OnboardingService:
             for msg in history
         ]
 
-        extractor = ProfileExtractionService(llm=llm)
-        extracted = await extractor.extract_from_conversation(conversation_dicts)
+        extractor = ProfileExtractionService(llm_service=llm)
+        extracted = await extractor.extract(conversation_dicts)
+
+        work_schedule_str = None
+        if extracted.work_schedule:
+            start = extracted.work_schedule.start_time or ""
+            end = extracted.work_schedule.end_time or ""
+            work_schedule_str = f"{start} - {end}".strip(" -") or None
+
+        sleep_schedule_str = None
+        if extracted.sleep_schedule:
+            bedtime = extracted.sleep_schedule.bedtime or ""
+            wake = extracted.sleep_schedule.wake_up_time or ""
+            sleep_schedule_str = f"{bedtime} - {wake}".strip(" -") or None
 
         profile_service = ProfileService(self.db)
-        profile = profile_service.update_or_create(
+        profile = profile_service.update_profile(
             user_id=user_id,
             occupation=extracted.occupation,
             education=extracted.education,
-            work_schedule=extracted.work_schedule,
-            sleep_schedule=extracted.sleep_schedule,
+            work_schedule=work_schedule_str,
+            sleep_schedule=sleep_schedule_str,
             lifestyle_summary=extracted.lifestyle_summary,
             preferences=extracted.preferences,
             constraints=extracted.constraints,
