@@ -1,9 +1,15 @@
 """Unit tests for bot security, user registration, and admin authorization."""
 
 import pytest
+
 from app.core.config import settings
-from app.db.base import Base, SessionLocal, User, engine
-from app.services.user_service import approve_user, get_user_by_telegram_id, register_user
+from app.db.base import Base, User
+from app.db.session import SessionLocal, engine
+from app.services.user_service import (
+    approve_user,
+    get_user_by_telegram_id,
+    register_user,
+)
 
 
 @pytest.fixture(autouse=True)

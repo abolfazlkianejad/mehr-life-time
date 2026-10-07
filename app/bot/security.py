@@ -11,13 +11,13 @@ from app.services.user_service import get_user_by_telegram_id
 
 
 def is_user_allowed(telegram_id: int) -> bool:
-    """Check if the telegram user is the primary admin or an approved user."""
-    if telegram_id in settings.ALLOWED_USERS:
+    """Check if the telegram user is in allowed admin list or is an active approved user."""
+    if telegram_id in settings.allowed_telegram_users:
         return True
 
     with SessionLocal() as session:
         user = get_user_by_telegram_id(session, telegram_id)
-        return user is not None and user.is_approved
+        return user is not None and bool(user.is_active)
 
 
 def restricted(func: Callable[..., Any]) -> Callable[..., Any]:

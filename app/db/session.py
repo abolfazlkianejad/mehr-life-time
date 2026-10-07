@@ -1,12 +1,18 @@
 """Database engine and session management."""
 
 from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
+
 from app.core.config import settings
 
-# SQLite needs check_same_thread=False for multithreaded environments
-connect_args = {"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+
+connect_args = (
+    {"check_same_thread": False}
+    if settings.DATABASE_URL.startswith("sqlite")
+    else {}
+)
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -20,16 +26,11 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
-Base = declarative_base()
-
 
 def get_db() -> Generator[Session, None, None]:
-    """Provide a transactional database session scope.
-
-    Yields:
-        Session: Active SQLAlchemy session.
-    """
+    """Provide a database session scope."""
     db = SessionLocal()
+
     try:
         yield db
     finally:

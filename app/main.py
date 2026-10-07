@@ -1,11 +1,11 @@
 """Application bootstrap and entry point."""
-
 from app.core.config import settings
 from app.core.logging import logger
 from app.db.session import engine
 from app.db.base import Base
 from app.bot.bot import start_bot
 
+import app.modules.onboarding.models
 
 def init_database() -> None:
     """Create all database tables if they do not exist."""
