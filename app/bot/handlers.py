@@ -6,6 +6,7 @@ and the AI Onboarding conversation workflow.
 
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from app.core.config import settings
@@ -20,112 +21,127 @@ from app.services.user_service import (
     reject_user,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mehr_life_time.bot.handlers")
+
+
+async def _notify_admin_access_request(
+    context: ContextTypes.DEFAULT_TYPE,
+    *,
+    telegram_id: int,
+    username: str | None,
+    full_name: str,
+    is_reminder: bool,
+) -> bool:
+    """Send an access request to the configured administrator chat."""
+    admin_chat_id = settings.TELEGRAM_ADMIN_CHAT_ID
+    if admin_chat_id is None:
+        logger.warning("Telegram admin chat is not configured.")
+        return False
+
+    label = "یادآوری درخواست دسترسی" if is_reminder else "درخواست دسترسی کاربر جدید"
+    admin_message = (
+        f"{label}:\n"
+        f"نام: {full_name}\n"
+        f"شناسه کاربری: @{username or 'ندارد'}\n"
+        f"شناسه تلگرام: {telegram_id}"
+    )
+    keyboard = InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton("تأیید دسترسی", callback_data=f"approve_{telegram_id}"),
+            InlineKeyboardButton("رد دسترسی", callback_data=f"reject_{telegram_id}"),
+        ]]
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=admin_chat_id,
+            text=admin_message,
+            reply_markup=keyboard,
+        )
+    except TelegramError:
+        logger.exception("Could not send access request to the admin chat.")
+        return False
+
+    return True
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command with role and onboarding state awareness."""
     user = update.effective_user
-    if not user:
+    message = update.effective_message
+    if not user or not message:
         return
 
     telegram_id = user.id
     username = user.username
     full_name = user.full_name or "کاربر ناشناس"
+    is_configured_admin = telegram_id in settings.allowed_telegram_users
+    is_new_user = False
+    is_active = False
+    user_id: int | None = None
+    onboarding_completed = False
 
     with SessionLocal() as db:
         db_user = get_user_by_telegram_id(db, telegram_id)
-
-        # Logic for new users (Registration)
         if not db_user:
+            is_new_user = True
             db_user = register_user(
                 db=db,
                 telegram_id=telegram_id,
                 username=username,
                 full_name=full_name,
-                role="user",
+                role="admin" if is_configured_admin else "user",
             )
-            admin_msg = (
-                f"کاربر جدید درخواست دسترسی داده است:\n"
-                f"نام: {full_name}\n"
-                f"شناسه کاربری: @{username if username else 'ندارد'}\n"
-                f"شناسه تلگرام: {telegram_id}"
-            )
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "تایید دسترسی", callback_data=f"approve_{telegram_id}"
-                    ),
-                    InlineKeyboardButton(
-                        "رد دسترسی", callback_data=f"reject_{telegram_id}"
-                    ),
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        elif is_configured_admin and not db_user.is_active:
+            db_user.is_active = True
+            db_user.role = "admin"
+            db.commit()
+            db.refresh(db_user)
 
-            if settings.TELEGRAM_ADMIN_CHAT_ID:
-                await context.bot.send_message(
-                    chat_id=settings.TELEGRAM_ADMIN_CHAT_ID,
-                    text=admin_msg,
-                    reply_markup=reply_markup,
-                )
+        user_id = db_user.id
+        is_active = db_user.is_active
 
-            await update.message.reply_text(
-                "سلام! درخواست دسترسی شما ثبت شد و پس از تایید ادمین فعال خواهد شد."
-            )
-            return
+        if is_active:
+            onboarding_service = OnboardingService(db)
+            onboarding_completed = onboarding_service.is_onboarding_completed(user_id)
+            if not onboarding_completed and not onboarding_service.get_active_session(user_id):
+                onboarding_service.create_session(user_id)
 
-        # Logic for existing, but inactive users (Re-notification)
-        if not db_user.is_active:
-            admin_msg = (
-                f"⚠️ یادآوری: کاربر {full_name} (@{username if username else 'ندارد'}) "
-                f"مجدداً درخواست دسترسی کرده است.\n"
-                f"شناسه تلگرام: {telegram_id}"
-            )
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "تایید دسترسی", callback_data=f"approve_{telegram_id}"
-                    ),
-                    InlineKeyboardButton(
-                        "رد دسترسی", callback_data=f"reject_{telegram_id}"
-                    ),
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            if settings.TELEGRAM_ADMIN_CHAT_ID:
-                await context.bot.send_message(
-                    chat_id=settings.TELEGRAM_ADMIN_CHAT_ID,
-                    text=admin_msg,
-                    reply_markup=reply_markup,
-                )
-
-            await update.message.reply_text(
-                "حساب کاربری شما هنوز تایید نشده است. درخواست شما مجدداً برای ادمین ارسال شد."
-            )
-            return
-
-        # Check onboarding status
-        onboarding_service = OnboardingService(db)
-        if not onboarding_service.is_onboarding_completed(db_user.id):
-            session = onboarding_service.get_active_session(db_user.id)
-            if not session:
-                onboarding_service.create_session(db_user.id)
-
-            welcome_msg = (
-                f"سلام {full_name} عزیز، به سیستم مدیریت زندگی و کار خوش آمدید!\n\n"
-                "برای اینکه دستیار شخصی‌تان بتواند برنامه‌ریزی دقیقی برای شما انجام دهد، "
-                "یک گفت‌وگوی کوتاه چند دقیقه‌ای برای آشنایی با اهداف و سبک زندگی شما خواهیم داشت.\n\n"
-                "می‌توانید با یک معرفی کوتاه از شغل یا فعالیت روزمره‌تان شروع کنید. "
-                "(هر زمان خواستید فرآیند جمع‌بندی شود، دستور /finish_onboarding را ارسال کنید.)"
-            )
-            await update.message.reply_text(welcome_msg)
-            return
-
-        await update.message.reply_text(
-            f"خوش آمدید {full_name}! سیستم مدیریت هوشمند آماده است."
+    if not is_active:
+        notification_sent = await _notify_admin_access_request(
+            context,
+            telegram_id=telegram_id,
+            username=username,
+            full_name=full_name,
+            is_reminder=not is_new_user,
         )
+        if notification_sent:
+            reply = (
+                "درخواست دسترسی شما ثبت شد و پس از تأیید مدیر فعال خواهد شد."
+                if is_new_user
+                else "حساب شما هنوز تأیید نشده است؛ درخواست دوباره برای مدیر ارسال شد."
+            )
+        else:
+            reply = (
+                "درخواست ثبت شد، اما مسیر اطلاع‌رسانی مدیر تنظیم نشده است. "
+                "مدیر بات باید شناسهٔ شما را در TELEGRAM_ALLOWED_USER_IDS قرار دهد "
+                "یا TELEGRAM_ADMIN_CHAT_ID را پیکربندی کند."
+            )
+        await message.reply_text(reply)
+        return
+
+    if not onboarding_completed:
+        await message.reply_text(
+            f"سلام {full_name} عزیز، به سیستم مدیریت زندگی و کار خوش آمدید!\n\n"
+            "برای آشنایی با کار و سبک زندگی‌تان، یک گفت‌وگوی کوتاه انجام می‌دهیم.\n\n"
+            "با معرفی کوتاهی از شغل یا فعالیت روزانه‌تان شروع کنید. "
+            "برای ساخت پروفایل، هر زمان آماده بودید /finish_onboarding را بفرستید."
+        )
+        return
+
+    await message.reply_text(
+        f"خوش آمدید {full_name}! دستیار شخصی آماده است. برای دیدن فرمان‌ها /help را بفرستید."
+    )
 
 
 async def finish_onboarding_handler(
@@ -226,7 +242,7 @@ async def text_message_handler(
 
         # General flow for completed onboarding
         await update.message.reply_text(
-            "پیام شما دریافت شد. (ماژول‌های وظایف و ثبت عادت‌ها در گام‌های بعدی فعال می‌شوند)"
+            "برای ثبت و مدیریت کارها و عادت‌ها از فرمان‌های بات استفاده کنید. /help را بفرستید."
         )
 
 
@@ -238,34 +254,64 @@ async def admin_callback_handler(
     if not query or not query.data:
         return
 
-    await query.answer()
-    data = query.data
+    if query.from_user.id not in settings.allowed_telegram_users:
+        logger.warning(
+            "Rejected access-management callback from unauthorized Telegram user %s.",
+            query.from_user.id,
+        )
+        await query.answer("این عملیات فقط برای مدیر مجاز است.", show_alert=True)
+        return
 
-    if data.startswith("approve_"):
-        target_tg_id = int(data.split("_")[1])
+    action, separator, target_text = query.data.partition("_")
+    if not separator or action not in {"approve", "reject"}:
+        await query.answer("درخواست نامعتبر است.", show_alert=True)
+        return
+
+    try:
+        target_tg_id = int(target_text)
+    except ValueError:
+        await query.answer("شناسهٔ کاربر نامعتبر است.", show_alert=True)
+        return
+
+    await query.answer()
+
+    if action == "approve":
         with SessionLocal() as db:
             user = approve_user(db, target_tg_id)
-            if user:
-                await query.edit_message_text(
-                    f"کاربر {user.full_name} ({user.telegram_id}) با موفقیت تایید شد."
-                )
-                try:
-                    await context.bot.send_message(
-                        chat_id=target_tg_id,
-                        text="دسترسی شما تایید شد! برای شروع دستور /start را ارسال کنید.",
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to notify user {target_tg_id} directly: {e}"
-                    )
-    elif data.startswith("reject_"):
-        target_tg_id = int(data.split("_")[1])
+            approved_user = (user.full_name, user.telegram_id) if user else None
+
+        if approved_user is None:
+            await query.edit_message_text("کاربر موردنظر پیدا نشد.")
+            return
+
+        approved_name, approved_telegram_id = approved_user
+        await query.edit_message_text(
+            f"کاربر {approved_name or approved_telegram_id} "
+            f"({approved_telegram_id}) با موفقیت تأیید شد."
+        )
+        try:
+            await context.bot.send_message(
+                chat_id=approved_telegram_id,
+                text="دسترسی شما تأیید شد! برای شروع دستور /start را ارسال کنید.",
+            )
+        except TelegramError:
+            logger.exception(
+                "Failed to notify approved Telegram user %s.",
+                approved_telegram_id,
+            )
+    else:
         with SessionLocal() as db:
-            user = reject_user(db, target_tg_id)
-            if user:
-                await query.edit_message_text(
-                    f"درخواست کاربر {user.full_name} ({user.telegram_id}) رد شد."
-                )
+            rejected_user = reject_user(db, target_tg_id)
+
+        if rejected_user is None:
+            await query.edit_message_text("کاربر موردنظر پیدا نشد.")
+            return
+
+        rejected_telegram_id, rejected_name = rejected_user
+        await query.edit_message_text(
+            f"درخواست کاربر {rejected_name or rejected_telegram_id} "
+            f"({rejected_telegram_id}) رد شد."
+        )
 
 
 async def setup_forum_topics_handler(

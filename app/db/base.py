@@ -234,6 +234,44 @@ class WorkoutLog(Base):
     )
 
 
+class RecoveryLog(Base):
+    """Recovery practices and quality records."""
+
+    __tablename__ = "recovery_logs"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        index=True,
+        nullable=False,
+    )
+    recovery_type: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+    duration_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    quality_score: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    logged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class Task(Base):
     """Individual work, study, or personal tasks."""
 

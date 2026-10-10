@@ -8,7 +8,7 @@ from typing import Dict
 from telegram import Bot
 from telegram.error import TelegramError
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mehr_life_time.services.telegram_topics")
 
 # Core Life OS Topics definition
 DEFAULT_TOPICS: Dict[str, str] = {

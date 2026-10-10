@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mehr_life_time.services.llm")
 
 
 class LLMService:
@@ -18,7 +18,7 @@ class LLMService:
         """Initialize base URL, default model name, and client timeout."""
         self.base_url: str = settings.LLM_BASE_URL.rstrip("/")
         self.default_model: str = settings.LLM_MODEL_NAME
-        self.timeout: float = 90.0
+        self.timeout: float = settings.LLM_TIMEOUT
 
     async def generate_response(
         self,

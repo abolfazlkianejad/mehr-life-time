@@ -1,7 +1,7 @@
 # app/core/config.py
 """Application settings and configuration management."""
 
-from typing import List
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -21,9 +22,9 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_ALLOWED_USER_IDS: str = ""
-    ALLOWED_USERS: List[int] = []
-
-    DATABASE_URL: str = "sqlite+aiosqlite:///data/mehr_life_time.db"
+    TELEGRAM_ADMIN_CHAT_ID: int | None = None
+    ALLOWED_USERS: list[int] = Field(default_factory=list)
+    DATABASE_URL: str = "sqlite:///data/mehr_life_time.db"
 
     # LLM Settings
     LLM_PROVIDER: str = "ollama"
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: float = 90.0
 
     @property
-    def allowed_telegram_users(self) -> List[int]:
+    def allowed_telegram_users(self) -> list[int]:
         """Parse comma-separated Telegram user IDs into a list of integers."""
         if not self.TELEGRAM_ALLOWED_USER_IDS.strip():
             return []

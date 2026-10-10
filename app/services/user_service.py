@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.db.base import User
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mehr_life_time.services.user_service")
 
 
 def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[User]:
@@ -54,7 +54,7 @@ def approve_user(db: Session, user_identifier: int) -> Optional[User]:
     return user
 
 
-def reject_user(db: Session, user_identifier: int) -> Optional[int]:
+def reject_user(db: Session, user_identifier: int) -> tuple[int, str | None] | None:
     """Reject and delete a user by either internal user.id or telegram_id."""
     user = (
         db.query(User)
@@ -64,7 +64,7 @@ def reject_user(db: Session, user_identifier: int) -> Optional[int]:
     if not user:
         return None
 
-    deleted_tg_id = user.telegram_id
+    rejected_user = (user.telegram_id, user.full_name)
     db.delete(user)
     db.commit()
-    return deleted_tg_id
+    return rejected_user
