@@ -6,12 +6,34 @@ from app.db.base import Base
 from app.db.session import engine
 
 import app.modules.onboarding.models
+import app.modules.planning.models
+from sqlalchemy import inspect, text
 
 
 def init_database() -> None:
     """Create all database tables if they do not exist."""
     logger.info("Verifying and initializing database tables...")
     Base.metadata.create_all(bind=engine)
+    inspector = inspect(engine)
+    migrations = {
+        "planned_tasks": {
+            "start_notified": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+        "telegram_workspaces": {
+            "bot_added": "BOOLEAN NOT NULL DEFAULT 0",
+            "user_joined": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+    }
+    with engine.begin() as connection:
+        for table, columns in migrations.items():
+            if not inspector.has_table(table):
+                continue
+            existing = {column["name"] for column in inspector.get_columns(table)}
+            for column, declaration in columns.items():
+                if column not in existing:
+                    connection.execute(text(
+                        f"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+                    ))
     logger.info("Database tables verified.")
 
 

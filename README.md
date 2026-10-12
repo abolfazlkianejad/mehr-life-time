@@ -1,26 +1,31 @@
 # Mehr Life Time
 
-Telegram-first personal work and lifestyle tracker built with Python, FastAPI, SQLAlchemy, and SQLite.
+دستیار برنامه‌ریزی شخصی در تلگرام با سوپرگروه خصوصی و تاپیک برای هر حوزهٔ زندگی. بات از مدیر دسترسی می‌گیرد، رضایت استفاده از AI را ثبت می‌کند، سپس فضای تلگرامی هر کاربر را آماده می‌سازد.
 
-## Features
+## قابلیت‌های برنامه‌ریزی
 
-- Telegram access requests and administrator approval
-- Tasks: create, list, and complete
-- Work sessions with optional task linking and duration summaries
-- Lifestyle entries: sleep, meals, workouts, and recovery
-- Deterministic combined reports with `/report [hours]` (1–168 hours)
-- FastAPI liveness and database readiness endpoints at `/health` and `/ready`
-- Structured JSON application logs
+- معارفهٔ تطبیقی با حدود ۲۰ سؤال و سقف ۳۰ سؤال؛ حوزه‌ها، تعهدهای ثابت، اولویت‌ها، خواب، زمان آزاد و محدودیت‌ها در حافظهٔ شخصی نگه‌داری می‌شوند.
+- ساخت تاپیک جدا برای هر حوزه و تاپیک جدا برای پروژه‌های بزرگ.
+- دریافت هدف یا پروژه با پیام طبیعی، دکمه یا فایل متنی، PDF و Word. AI تا روشن‌شدن محدوده، کارهای باقی‌مانده و برآورد زمان، برنامه نمی‌سازد.
+- شکستن هدف به تسک، چیدن آن‌ها در بازه‌های آزاد، انتشار برنامه در تاپیک حوزه و هشدار دربارهٔ گام‌هایی که تا موعد جا نمی‌شوند.
+- برنامهٔ هفتگی از شنبه ساعت ۰۶:۰۰ و برنامهٔ روزانه هر روز ساعت ۰۶:۰۰ به وقت تهران.
+- دکمه‌های شروع و اتمام، ثبت زمان واقعی و تطبیق تدریجی برآورد مدت با لاگ‌های شخصی.
+- پیگیری در موعد پایان و حداکثر سه یادآوری با فاصلهٔ ۱۵ دقیقه؛ تسک ناتمام باز می‌ماند و به بازهٔ آزاد بعد منتقل می‌شود.
+- کیبورد ثابت برای افزودن هدف، برنامهٔ هفتگی، شروع/اتمام، پیشرفت و حوزه‌ها.
 
-The bot accepts concise Telegram commands. LLM integration remains limited to onboarding extraction and is not required for task, tracking, or report logic. Daily report delivery is not enabled; reports are requested manually with `/report`.
+پیام‌ها و فایل‌های کاربر فقط به نمونهٔ Ollama روی همین دستگاه/سرور (`localhost` یا `127.0.0.1`) فرستاده می‌شوند. جست‌وجوی وب برای محتوای کاربر در این نسخه غیرفعال است تا مقصد و دادهٔ ارسالی با رضایت مشخص کاربر تأیید شود.
 
-## Requirements
+## پیش‌نیازها
 
-- Python 3.11 or newer
-- Telegram bot token from BotFather
-- Optional local Ollama server for AI onboarding features
+- Python 3.11 یا بالاتر
+- توکن بات تلگرام
+- Ollama محلی و یک مدل چت، مانند مدل تنظیم‌شده در `.env`
+- حساب کاربری اختصاصی تلگرام برای ساخت سوپرگروه‌های کاربران
+- `api_id` و `api_hash` از `my.telegram.org`
 
-## Setup
+حساب اختصاصی سامانه سازنده و مالک گروه‌ها می‌ماند و در گروه‌ها حضور دارد. این موضوع در صفحهٔ رضایت کاربر اعلام می‌شود.
+
+## راه‌اندازی
 
 ```powershell
 python -m venv .venv
@@ -30,53 +35,34 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_IDS`, and, if administrator approval messages are desired, `TELEGRAM_ADMIN_CHAT_ID`. Keep secrets in `.env`; never commit that file. The default SQLite database is created at `data/mehr_life_time.db`.
+مقادیر `TELEGRAM_BOT_TOKEN`، `TELEGRAM_ALLOWED_USER_IDS` یا `TELEGRAM_ADMIN_CHAT_ID` و اطلاعات API حساب اختصاصی را در `.env` تنظیم کنید. مدل پیش‌فرض فقط به Ollama محلی متصل می‌شود.
 
-## Run
+برای ساخت کلید رمزگذاری نشست:
 
-Start the Telegram bot:
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+کلید را در `TELEGRAM_SESSION_ENCRYPTION_KEY` بگذارید. سپس از ترمینال محلی، ورود حساب اختصاصی را یک‌بار انجام دهید:
+
+```powershell
+python scripts/authorize_telegram_account.py
+```
+
+کد ورود و رمز دومرحله‌ای فقط در همان ترمینال وارد می‌شود. فایل نشست رمزگذاری‌شده در مسیر `TELEGRAM_USER_SESSION` ذخیره می‌شود؛ فایل نشست و کلید را در مخزن Git قرار ندهید.
+
+در Telegram BotFather، بات را طوری تنظیم کنید که بتواند به گروه‌ها اضافه شود. ساخت گروه/تاپیک و عضویت مستقیم کاربر به سیاست‌های تلگرام و دسترسی حساب اختصاصی بستگی دارد. اگر تلگرام افزودن مستقیم کاربر را نپذیرد، لینک دعوت برای او فرستاده می‌شود؛ اگر افزودن بات هم رد شود، کاربر باید آن را به گروه اضافه کند.
+
+## اجرا
 
 ```powershell
 python -m app.main
 ```
 
-In a second terminal, run the health API:
+API سلامت اختیاری:
 
 ```powershell
 uvicorn app.api:app --host 127.0.0.1 --port 8000
 ```
 
-Check `http://127.0.0.1:8000/health` for liveness and `/ready` for database readiness. Do not expose the development API publicly without adding deployment security and network controls.
-
-## Telegram commands
-
-| Command | Purpose |
-| --- | --- |
-| `/help` | Show available commands |
-| `/task Write report` | Add a task |
-| `/tasks` | List pending tasks |
-| `/done 12` | Complete a task by ID |
-| `/work_start [task_id]` | Start a work session |
-| `/work_stop [note]` | Stop the active session |
-| `/sleep 7.5 [quality_1_to_10]` | Record sleep |
-| `/meal type | description | [calories]` | Record a meal |
-| `/workout type | minutes | [intensity]` | Record a workout |
-| `/recovery type | [minutes] | [quality_1_to_10] | [notes]` | Record recovery |
-| `/report [hours]` | Summarize work and lifestyle data for a period up to 168 hours |
-| `/finish_onboarding` | Complete AI-assisted onboarding |
-
-Numeric command arguments accept Persian and Arabic numerals where applicable.
-
-## Configuration
-
-All configuration is loaded centrally from environment variables and `.env` using Pydantic Settings. See `.env.example` for supported variables. The bot uses polling; the API and bot run as separate processes.
-
-## Tests
-
-Run the test suite from the repository root:
-
-```powershell
-pytest tests -q
-```
-
-The test configuration uses an isolated in-memory SQLite database.
+پایگاه‌دادهٔ پیش‌فرض در `data/mehr_life_time.db` ساخته می‌شود. بات و API را هر دو با دسترسی شبکهٔ محدود اجرا کنید.

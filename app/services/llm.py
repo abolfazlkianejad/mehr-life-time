@@ -4,6 +4,7 @@ Provides an asynchronous client to generate text and chat completions.
 """
 
 import logging
+from urllib.parse import urlsplit
 from typing import Any, Dict, List, Optional
 import httpx
 from app.core.config import settings
@@ -42,6 +43,11 @@ class LLMService:
         """
         target_model = model or self.default_model
         endpoint = f"{self.base_url}/api/chat"
+        hostname = urlsplit(self.base_url).hostname
+        if hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise RuntimeError(
+                "For privacy, user messages may only be sent to a local Ollama instance."
+            )
         payload: Dict[str, Any] = {
             "model": target_model,
             "messages": messages,
@@ -52,7 +58,9 @@ class LLMService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # Ignore proxy environment variables so loopback inference cannot be
+            # silently routed through an externally configured HTTP proxy.
+            async with httpx.AsyncClient(timeout=self.timeout, trust_env=False) as client:
                 response = await client.post(endpoint, json=payload)
                 if response.status_code != 200:
                     error_detail = response.text

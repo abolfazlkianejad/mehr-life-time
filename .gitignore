@@ -29,6 +29,9 @@ wheels/
 # SQLite database files
 *.db
 *.sqlite3
+*.session
+*.session-journal
+*.session.enc
 
 # IDE and editor settings
 .idea/

@@ -60,5 +60,12 @@ class TopicService:
 
         return created_threads
 
+    @staticmethod
+    async def create_topic(bot: Bot, chat_id: int, name: str) -> int:
+        """Create one forum topic and return its thread ID."""
+        safe_name = name.strip()[:128] or "دستیار"
+        topic = await bot.create_forum_topic(chat_id=chat_id, name=safe_name)
+        return topic.message_thread_id
+
 
 topic_service = TopicService()

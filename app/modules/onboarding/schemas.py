@@ -3,6 +3,15 @@
 from pydantic import BaseModel, Field
 
 
+class LifeAreaExtraction(BaseModel):
+    """A recurring domain or large project explicitly mentioned by the user."""
+
+    key: str
+    title: str
+    description: str = ""
+    is_project: bool = False
+
+
 class WorkSchedule(BaseModel):
     """User's usual work schedule."""
 
@@ -15,6 +24,7 @@ class WorkSchedule(BaseModel):
         default=None,
         description="Usual work end time.",
     )
+    weekdays: list[int] = Field(default_factory=list)
 
 
 class SleepSchedule(BaseModel):
@@ -68,3 +78,10 @@ class ProfileExtraction(BaseModel):
         default=None,
         description="Important limitations or constraints affecting planning.",
     )
+
+    priorities: str | None = Field(default=None)
+    work_days: list[int] = Field(default_factory=list)
+    fixed_commitments: list[dict[str, object]] = Field(default_factory=list)
+    daily_free_time: str | None = Field(default=None)
+    energy_patterns: str | None = Field(default=None)
+    life_areas: list[LifeAreaExtraction] = Field(default_factory=list)

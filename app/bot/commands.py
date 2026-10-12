@@ -59,21 +59,13 @@ def _format_minutes(minutes: int) -> str:
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show supported work and lifestyle commands."""
+    """Show the button-first planner instructions."""
     await _reply(
         update,
-        "فرمان‌های سیستم:\n"
-        "/task عنوان وظیفه — ثبت وظیفه\n"
-        "/tasks — نمایش وظایف باز\n"
-        "/done شناسه — تکمیل وظیفه\n"
-        "/work_start [شناسه وظیفه] — شروع ثبت زمان\n"
-        "/work_stop [یادداشت] — پایان ثبت زمان\n"
-        "/sleep ساعت [کیفیت ۱ تا ۱۰] — ثبت خواب\n"
-        "/meal نوع | شرح | کالری — ثبت وعده\n"
-        "/workout نوع | دقیقه | شدت — ثبت تمرین\n"
-        "/recovery نوع | دقیقه | کیفیت | یادداشت — ثبت ریکاوری\n"
-        "/report [ساعت، حداکثر ۱۶۸] — گزارش بازه‌ای\n"
-        "/finish_onboarding — ساخت پروفایل اولیه",
+        "در گروه خصوصی، از کیبورد پایین برای افزودن هدف یا تسک، دیدن برنامهٔ هفتگی، "
+        "شروع/اتمام کار و گزارش پیشرفت استفاده کن.\n\n"
+        "برای اصلاح برنامه یا دادن جزئیات بیشتر، همان‌جا طبیعی پیام بده. "
+        "برای هر هدف، AI سؤال‌های لازم را می‌پرسد و بعد برنامه را در تاپیک همان حوزه منتشر می‌کند.",
     )
 
 

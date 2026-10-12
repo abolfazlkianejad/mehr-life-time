@@ -10,20 +10,14 @@ from app.modules.onboarding.models import OnboardingMessage, OnboardingSession
 from app.services.llm import LLMService
 from app.services.profile_service import ProfileService
 
-ONBOARDING_SYSTEM_PROMPT = """You are an intelligent Life & Work Operating System assistant conducting an initial onboarding conversation with a user.
-Your mission is to understand the user's daily life, work, habits, and preferences through a natural, encouraging, and focused conversation.
-
-Key areas to discover gently:
-1. Occupation, field of study, or primary daily focus.
-2. Typical work routines and productive hours.
-3. Sleep schedule, wake-up time, and energy patterns.
-4. Core preferences, priorities, or personal constraints.
-
-Guidelines:
-- Always respond in polite, concise, and friendly Persian (Farsi).
-- Ask only 1 or 2 targeted questions at a time to avoid overwhelming the user.
-- Acknowledge their previous answers warmly before asking the next question.
-- Keep responses short, direct, and conversational.
+ONBOARDING_SYSTEM_PROMPT = """تو مغز یک برنامه‌ریز شخصی هستی و معارفه را خودت با سؤال‌های تطبیقی انجام می‌دهی.
+هدف: حدود ۲۰ سؤال دقیق و متناسب با جواب‌های کاربر بپرسی و فقط اگر ابهام مهمی باقی ماند تا سقف ۳۰ سؤال ادامه دهی.
+موضوعات لازم، در حد مرتبط با همین فرد: شغل یا تحصیل و روزها و ساعت‌های ثابت؛ خواب و بیداری و انرژی؛ رفت‌وآمد و تعهدات؛ حوزه‌های مهم زندگی؛ اولویت‌ها؛ زمان آزاد واقعی؛ اهداف و پروژه‌های جاری و موعد و کارهای باقی‌مانده؛ محدودیت‌ها و ترجیحات برنامه‌ریزی.
+هر نوبت فقط یک سؤال مشخص بپرس تا سقف ۳۰ سؤال واقعی رعایت شود؛ سؤال تکراری نپرس، پاسخ قبلی را کوتاه به رسمیت بشناس و سؤال بعدی را با توجه به آن تنظیم کن. از سؤال بی‌ربط برای پر کردن تعداد خودداری کن.
+اگر پاسخ مبهم است، محترمانه بگو جزئیات دقیق‌تر باعث برنامه‌ریزی بهتر می‌شود و همان مورد را روشن کن.
+پس از پوشش موضوعات مرتبط و کافی بودن اطلاعات، در انتهای پاسخ دقیقاً این نشانگر را در یک خط جدا قرار بده: [PROFILE_READY]
+اگر به سؤال سی‌ام رسیدی، اطلاعات موجود را خلاصه کن، موارد نامعلوم را صریح بگو و بدون سؤال بیشتر همان نشانگر را بگذار.
+فقط فارسی روان و کوتاه بنویس. هیچ برنامه یا زمان‌بندی‌ای را در مرحلهٔ معارفه نساز.
 """
 
 
@@ -135,7 +129,20 @@ class OnboardingService:
 
         # 2. Build history for context
         history = self.get_messages(session.id)
-        llm_messages = [{"role": "system", "content": ONBOARDING_SYSTEM_PROMPT}]
+        asked_count = sum(1 for msg in history if msg.role == "assistant")
+        if asked_count >= 30:
+            response_text = (
+                "اطلاعات فعلی را جمع‌بندی می‌کنم و موارد نامعلوم را در برنامه لحاظ نمی‌کنم. "
+                "اگر بعداً نکته‌ای جا افتاد، می‌توانی آن را در گفت‌وگو اضافه کنی.\n[PROFILE_READY]"
+            )
+            self.add_message(session_id=session.id, role="assistant", content=response_text)
+            return response_text
+        prompt = (
+            ONBOARDING_SYSTEM_PROMPT
+            + f"\nتعداد سؤال‌های دستیار تا اینجا: {asked_count} از ۳۰. "
+            + "سؤال بعدی را فقط اگر لازم است مطرح کن."
+        )
+        llm_messages = [{"role": "system", "content": prompt}]
         for msg in history:
             llm_messages.append({"role": msg.role, "content": msg.content})
 
@@ -145,6 +152,25 @@ class OnboardingService:
         # 4. Record assistant reply
         self.add_message(session_id=session.id, role="assistant", content=response_text)
 
+        return response_text
+
+    async def start_conversation(self, user_id: int, llm: LLMService) -> str:
+        """Create the first adaptive question without requiring a user command."""
+        session = self.get_active_session(user_id) or self.create_session(user_id)
+        existing = self.get_messages(session.id)
+        if existing:
+            return existing[-1].content
+        response_text = await llm.generate_response(
+            messages=[
+                {"role": "system", "content": ONBOARDING_SYSTEM_PROMPT},
+                {"role": "user", "content": "معارفه را شروع کن و اولین سؤال ضروری را بپرس."},
+            ]
+        )
+        self.add_message(
+            session_id=session.id,
+            role="assistant",
+            content=response_text,
+        )
         return response_text
 
     async def extract_and_save_profile(
@@ -197,6 +223,42 @@ class OnboardingService:
             preferences=extracted.preferences,
             constraints=extracted.constraints,
         )
+
+        from app.modules.planning.models import UserMemory
+        import json
+
+        memory = (
+            self.db.query(UserMemory)
+            .filter(UserMemory.user_id == user_id)
+            .first()
+        )
+        facts = {
+            "priorities": extracted.priorities,
+            "work_days": extracted.work_days or (
+                extracted.work_schedule.weekdays if extracted.work_schedule else []
+            ),
+            "fixed_commitments": extracted.fixed_commitments,
+            "daily_free_time": extracted.daily_free_time,
+            "energy_patterns": extracted.energy_patterns,
+            "life_areas": [area.model_dump() for area in extracted.life_areas],
+            "onboarding_summary": extracted.lifestyle_summary,
+            "planning_preferences": extracted.preferences,
+            "constraints": extracted.constraints,
+        }
+        if memory:
+            try:
+                old_facts = json.loads(memory.facts)
+                if isinstance(old_facts, dict):
+                    facts = {**old_facts, **facts}
+            except json.JSONDecodeError:
+                pass
+            memory.facts = json.dumps(facts, ensure_ascii=False)
+        else:
+            self.db.add(UserMemory(
+                user_id=user_id,
+                facts=json.dumps(facts, ensure_ascii=False),
+            ))
+        self.db.commit()
 
         self.complete_session(session.id)
         return profile

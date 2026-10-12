@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_ALLOWED_USER_IDS: str = ""
     TELEGRAM_ADMIN_CHAT_ID: int | None = None
+    TELEGRAM_API_ID: int | None = None
+    TELEGRAM_API_HASH: str = ""
+    TELEGRAM_USER_SESSION: str = "data/telegram_creator.session.enc"
+    TELEGRAM_SESSION_ENCRYPTION_KEY: str = ""
+    TELEGRAM_BOT_USERNAME: str = ""
     ALLOWED_USERS: list[int] = Field(default_factory=list)
     DATABASE_URL: str = "sqlite:///data/mehr_life_time.db"
 

@@ -12,6 +12,7 @@ from telegram.ext import ContextTypes
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.modules.onboarding.service import OnboardingService
+from app.bot.planner_ui import show_entrypoint
 from app.services.llm import LLMService
 from app.services.telegram_topics import topic_service
 from app.services.user_service import (
@@ -79,7 +80,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     is_new_user = False
     is_active = False
     user_id: int | None = None
-    onboarding_completed = False
 
     with SessionLocal() as db:
         db_user = get_user_by_telegram_id(db, telegram_id)
@@ -100,12 +100,6 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         user_id = db_user.id
         is_active = db_user.is_active
-
-        if is_active:
-            onboarding_service = OnboardingService(db)
-            onboarding_completed = onboarding_service.is_onboarding_completed(user_id)
-            if not onboarding_completed and not onboarding_service.get_active_session(user_id):
-                onboarding_service.create_session(user_id)
 
     if not is_active:
         notification_sent = await _notify_admin_access_request(
@@ -130,18 +124,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text(reply)
         return
 
-    if not onboarding_completed:
-        await message.reply_text(
-            f"سلام {full_name} عزیز، به سیستم مدیریت زندگی و کار خوش آمدید!\n\n"
-            "برای آشنایی با کار و سبک زندگی‌تان، یک گفت‌وگوی کوتاه انجام می‌دهیم.\n\n"
-            "با معرفی کوتاهی از شغل یا فعالیت روزانه‌تان شروع کنید. "
-            "برای ساخت پروفایل، هر زمان آماده بودید /finish_onboarding را بفرستید."
-        )
-        return
-
-    await message.reply_text(
-        f"خوش آمدید {full_name}! دستیار شخصی آماده است. برای دیدن فرمان‌ها /help را بفرستید."
-    )
+    if user_id is not None:
+        await show_entrypoint(context, user_id, telegram_id)
 
 
 async def finish_onboarding_handler(
@@ -290,15 +274,13 @@ async def admin_callback_handler(
             f"({approved_telegram_id}) با موفقیت تأیید شد."
         )
         try:
-            await context.bot.send_message(
-                chat_id=approved_telegram_id,
-                text="دسترسی شما تأیید شد! برای شروع دستور /start را ارسال کنید.",
-            )
+            with SessionLocal() as db:
+                approved = get_user_by_telegram_id(db, approved_telegram_id)
+                approved_id = approved.id if approved else None
+            if approved_id is not None:
+                await show_entrypoint(context, approved_id, approved_telegram_id)
         except TelegramError:
-            logger.exception(
-                "Failed to notify approved Telegram user %s.",
-                approved_telegram_id,
-            )
+            logger.exception("Failed to notify approved Telegram user %s.", approved_telegram_id)
     else:
         with SessionLocal() as db:
             rejected_user = reject_user(db, target_tg_id)
