@@ -4,6 +4,7 @@ import pytest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import app.bot.handlers as bot_handlers
 from app.bot.handlers import admin_callback_handler, start_handler
 from app.core.config import settings
 from app.db.base import Base, User
@@ -87,15 +88,18 @@ async def test_configured_admin_is_activated_on_first_start(
         effective_message=message,
     )
     context = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    entrypoint = AsyncMock()
+    monkeypatch.setattr(bot_handlers, "show_entrypoint", entrypoint)
 
     await start_handler(update, context)
 
-    message.reply_text.assert_awaited_once()
+    message.reply_text.assert_not_awaited()
     with SessionLocal() as session:
         user = get_user_by_telegram_id(session, admin_id)
         assert user is not None
         assert user.is_active is True
         assert user.role == "admin"
+        entrypoint.assert_awaited_once_with(context, user.id, admin_id)
 
 
 @pytest.mark.asyncio

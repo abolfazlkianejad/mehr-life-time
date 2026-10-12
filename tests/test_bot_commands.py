@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from telegram.ext import CommandHandler
+from telegram.ext import CallbackQueryHandler, ChatMemberHandler, MessageHandler
 
 from app.bot.bot import build_bot_app
 from app.bot import commands
@@ -56,10 +57,10 @@ def _mock_update(telegram_id: int) -> tuple[SimpleNamespace, AsyncMock]:
     return update, reply_text
 
 
-def test_bot_registers_all_supported_commands(
+def test_bot_registers_keyboard_workflows_instead_of_task_commands(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure public Telegram routes include each implemented command."""
+    """Ensure task management is routed through the keyboard and messages."""
     monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "123456:ABCDEF1234567890")
 
     bot_app = build_bot_app()
@@ -71,21 +72,14 @@ def test_bot_registers_all_supported_commands(
         if isinstance(handler, CommandHandler)
         for command in handler.commands
     }
-    assert {
-        "start",
-        "finish_onboarding",
-        "help",
-        "task",
-        "tasks",
-        "done",
-        "work_start",
-        "work_stop",
-        "sleep",
-        "meal",
-        "workout",
-        "recovery",
-        "report",
-    } <= registered_commands
+    assert registered_commands == {"start", "help"}
+
+    handler_types = {
+        type(handler)
+        for handlers in bot_app.handlers.values()
+        for handler in handlers
+    }
+    assert {CallbackQueryHandler, ChatMemberHandler, MessageHandler} <= handler_types
 
 
 @pytest.mark.asyncio
