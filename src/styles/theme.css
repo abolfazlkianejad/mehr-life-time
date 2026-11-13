@@ -61,8 +61,12 @@
 }
 
 @theme inline {
-  --font-inter: 'Inter', 'sans-serif';
-  --font-manrope: 'Manrope', 'sans-serif';
+  /* Persian-capable fallbacks (Vazirmatn / Noto Naskh Arabic / Tahoma) are
+   * appended so Persian glyphs never fall back to a Latin-only face. */
+  --font-inter:
+    'Inter', 'Vazirmatn', 'Noto Naskh Arabic', 'Tahoma', 'sans-serif';
+  --font-manrope:
+    'Manrope', 'Vazirmatn', 'Noto Naskh Arabic', 'Tahoma', 'sans-serif';
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "Personal Life & Work OS",
+  "short_name": "Life OS",
+  "description": "Offline-first personal work and life organizer",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/images/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

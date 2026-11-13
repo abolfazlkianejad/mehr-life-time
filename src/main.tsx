@@ -6,17 +6,30 @@ import {
   QueryClient,
   QueryClientProvider,
 } from '@tanstack/react-query'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { handleServerError } from '@/lib/handle-server-error'
+import { initializeOfflineStorage, runStartupRollover } from '@/services/db'
+import { registerServiceWorker } from '@/lib/register-service-worker'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
+// i18n (must be initialised before first render)
+import './i18n/config'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
+
+// Open and upgrade IndexedDB without inserting sample records.
+void initializeOfflineStorage()
+  .then(() => runStartupRollover())
+  .catch(() => {
+    // Storage can be unavailable (private mode / blocked IndexedDB). The app
+    // still renders; offline features simply stay empty until storage is back.
+  })
+registerServiceWorker()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,10 +85,15 @@ const queryClient = new QueryClient({
   }),
 })
 
-// Create a new router instance
+// Create a new router instance. Windows WebView2 serves the app over http://
+// so browser history works there; future macOS/Linux builds use Tauri's
+// non-http protocol where hash history is required.
+const isTauri = '__TAURI_INTERNALS__' in window
+const usesHttpProtocol = ['http:', 'https:'].includes(window.location.protocol)
 const router = createRouter({
   routeTree,
   context: { queryClient },
+  history: isTauri && !usesHttpProtocol ? createHashHistory() : undefined,
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
 })

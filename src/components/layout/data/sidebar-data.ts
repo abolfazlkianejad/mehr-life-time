@@ -1,203 +1,149 @@
 import {
-  Construction,
   LayoutDashboard,
-  Monitor,
-  Bug,
+  CalendarClock,
+  Sunrise,
+  GraduationCap,
+  Dumbbell,
+  BatteryCharging,
   ListTodo,
-  FileX,
-  HelpCircle,
-  Lock,
   Bell,
-  Package,
   Palette,
-  ServerOff,
   Settings,
   Wrench,
   UserCog,
-  UserX,
-  Users,
-  MessagesSquare,
-  ShieldCheck,
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
+  Monitor,
+  Wallet,
+  Share2,
+  ClipboardCheck,
+  Newspaper,
+  FolderGit2,
+  Utensils,
+  HardDrive,
 } from 'lucide-react'
-import { ClerkLogo } from '@/assets/clerk-logo'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
-  user: {
-    name: 'satnaing',
-    email: 'satnaingdev@gmail.com',
-    avatar: '/avatars/shadcn.jpg',
-  },
   teams: [
     {
-      name: 'Shadcn Admin',
-      logo: Command,
-      plan: 'Vite + ShadcnUI',
-    },
-    {
-      name: 'Acme Inc',
-      logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
-    },
-    {
-      name: 'Acme Corp.',
-      logo: AudioWaveform,
-      plan: 'Startup',
+      name: 'Life OS',
+      logo: GraduationCap,
+      plan: 'Offline-first',
     },
   ],
   navGroups: [
     {
-      title: 'General',
+      title: 'nav.group',
       items: [
         {
-          title: 'Dashboard',
+          title: 'nav.dashboard',
           url: '/',
           icon: LayoutDashboard,
         },
         {
-          title: 'Tasks',
+          title: 'nav.tasks',
           url: '/tasks',
           icon: ListTodo,
         },
         {
-          title: 'Apps',
-          url: '/apps',
-          icon: Package,
+          title: 'nav.education',
+          url: '/education',
+          icon: GraduationCap,
         },
         {
-          title: 'Chats',
-          url: '/chats',
-          badge: '3',
-          icon: MessagesSquare,
+          title: 'nav.projects',
+          url: '/projects',
+          icon: FolderGit2,
         },
         {
-          title: 'Users',
-          url: '/users',
-          icon: Users,
+          title: 'nav.nutrition',
+          url: '/nutrition',
+          icon: Utensils,
         },
         {
-          title: 'Secured by Clerk',
-          icon: ClerkLogo,
-          items: [
-            {
-              title: 'Sign In',
-              url: '/clerk/sign-in',
-            },
-            {
-              title: 'Sign Up',
-              url: '/clerk/sign-up',
-            },
-            {
-              title: 'User Management',
-              url: '/clerk/user-management',
-            },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Pages',
-      items: [
-        {
-          title: 'Auth',
-          icon: ShieldCheck,
-          items: [
-            {
-              title: 'Sign In',
-              url: '/sign-in',
-            },
-            {
-              title: 'Sign In (2 Col)',
-              url: '/sign-in-2',
-            },
-            {
-              title: 'Sign Up',
-              url: '/sign-up',
-            },
-            {
-              title: 'Forgot Password',
-              url: '/forgot-password',
-            },
-            {
-              title: 'OTP',
-              url: '/otp',
-            },
-          ],
+          title: 'nav.gym',
+          url: '/gym',
+          icon: Dumbbell,
         },
         {
-          title: 'Errors',
-          icon: Bug,
-          items: [
-            {
-              title: 'Unauthorized',
-              url: '/errors/unauthorized',
-              icon: Lock,
-            },
-            {
-              title: 'Forbidden',
-              url: '/errors/forbidden',
-              icon: UserX,
-            },
-            {
-              title: 'Not Found',
-              url: '/errors/not-found',
-              icon: FileX,
-            },
-            {
-              title: 'Internal Server Error',
-              url: '/errors/internal-server-error',
-              icon: ServerOff,
-            },
-            {
-              title: 'Maintenance Error',
-              url: '/errors/maintenance-error',
-              icon: Construction,
-            },
-          ],
+          title: 'nav.social',
+          url: '/social',
+          icon: Share2,
+        },
+        {
+          title: 'nav.news',
+          url: '/news',
+          icon: Newspaper,
+        },
+        {
+          title: 'nav.finance',
+          url: '/finance',
+          icon: Wallet,
+        },
+        {
+          title: 'nav.review',
+          url: '/review',
+          icon: ClipboardCheck,
         },
       ],
     },
     {
-      title: 'Other',
+      title: 'nav.general',
       items: [
         {
-          title: 'Settings',
+          title: 'nav.timeline',
+          url: '/timeline',
+          icon: CalendarClock,
+        },
+        {
+          title: 'nav.goldenHour',
+          url: '/golden-hour',
+          icon: Sunrise,
+        },
+        {
+          title: 'nav.energy',
+          url: '/energy',
+          icon: BatteryCharging,
+        },
+      ],
+    },
+    {
+      title: 'nav.other',
+      items: [
+        {
+          title: 'nav.settings',
           icon: Settings,
           items: [
             {
-              title: 'Profile',
+              title: 'nav.profile',
               url: '/settings',
               icon: UserCog,
             },
             {
-              title: 'Account',
+              title: 'nav.account',
               url: '/settings/account',
               icon: Wrench,
             },
             {
-              title: 'Appearance',
+              title: 'nav.appearance',
               url: '/settings/appearance',
               icon: Palette,
             },
             {
-              title: 'Notifications',
+              title: 'nav.notifications',
               url: '/settings/notifications',
               icon: Bell,
             },
             {
-              title: 'Display',
+              title: 'nav.display',
               url: '/settings/display',
               icon: Monitor,
             },
+            {
+              title: 'nav.data',
+              url: '/settings/data',
+              icon: HardDrive,
+            },
           ],
-        },
-        {
-          title: 'Help Center',
-          url: '/help-center',
-          icon: HelpCircle,
         },
       ],
     },

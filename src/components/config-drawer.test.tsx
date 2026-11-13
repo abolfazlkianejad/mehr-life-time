@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, type RenderResult } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { getCookie, setCookie } from '@/lib/cookies'
+import i18n, { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY } from '@/i18n/config'
 import { DirectionProvider } from '@/context/direction-provider'
 import { LayoutProvider } from '@/context/layout-provider'
 import { ThemeProvider } from '@/context/theme-provider'
@@ -37,10 +38,15 @@ async function openDrawer(screen: RenderResult) {
 }
 
 describe('ConfigDrawer (integration)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
 
     clearCookies()
+    window.localStorage.clear()
+
+    // Direction is derived from the active language, so pin the language to the
+    // default before every test to keep `<html dir>` deterministic.
+    await i18n.changeLanguage(DEFAULT_LANGUAGE)
 
     document.documentElement.classList.remove('light', 'dark')
     document.documentElement.removeAttribute('dir')
@@ -189,11 +195,15 @@ describe('ConfigDrawer (integration)', () => {
       const screen = await renderConfigDrawer()
       await openDrawer(screen)
 
+      // Move away from the default language so the reset control is available.
       await userEvent.click(
-        screen.getByRole('radio', { name: /select right to left/i })
+        screen.getByRole('radio', { name: /select left to right/i })
       )
       await vi.waitFor(() =>
-        expect(document.documentElement.getAttribute('dir')).toBe('rtl')
+        expect(document.documentElement.getAttribute('dir')).toBe('ltr')
+      )
+      await vi.waitFor(() =>
+        expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
       )
 
       await userEvent.click(
@@ -202,9 +212,13 @@ describe('ConfigDrawer (integration)', () => {
         })
       )
       await vi.waitFor(() =>
-        expect(document.documentElement.getAttribute('dir')).toBe('ltr')
+        expect(document.documentElement.getAttribute('dir')).toBe('rtl')
       )
-      expect(getCookie('dir')).toBe('ltr')
+      await vi.waitFor(() =>
+        expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe(
+          DEFAULT_LANGUAGE
+        )
+      )
     })
 
     it('resets sidebar style via section control after choosing floating', async () => {
@@ -253,12 +267,14 @@ describe('ConfigDrawer (integration)', () => {
     await openDrawer(screen)
 
     await userEvent.click(
-      screen.getByRole('radio', { name: /select right to left/i })
+      screen.getByRole('radio', { name: /select left to right/i })
     )
     await vi.waitFor(() =>
-      expect(document.documentElement.getAttribute('dir')).toBe('rtl')
+      expect(document.documentElement.getAttribute('dir')).toBe('ltr')
     )
-    expect(getCookie('dir')).toBe('rtl')
+    await vi.waitFor(() =>
+      expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
+    )
   })
 
   it('updates layout: selecting non-default closes sidebar and changes layout cookie', async () => {
@@ -285,7 +301,7 @@ describe('ConfigDrawer (integration)', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: /select dark/i }))
     await userEvent.click(
-      screen.getByRole('radio', { name: /select right to left/i })
+      screen.getByRole('radio', { name: /select left to right/i })
     )
     await userEvent.click(
       screen.getByRole('radio', { name: /select floating/i })
@@ -295,7 +311,9 @@ describe('ConfigDrawer (integration)', () => {
     )
 
     await vi.waitFor(() => expect(getCookie('vite-ui-theme')).toBe('dark'))
-    await vi.waitFor(() => expect(getCookie('dir')).toBe('rtl'))
+    await vi.waitFor(() =>
+      expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
+    )
     await vi.waitFor(() => expect(getCookie('layout_variant')).toBe('floating'))
     await vi.waitFor(() =>
       expect(getCookie('layout_collapsible')).toBe('offcanvas')
@@ -308,12 +326,18 @@ describe('ConfigDrawer (integration)', () => {
     )
 
     await vi.waitFor(() => expect(getCookie('sidebar_state')).toBe('true'))
-    await vi.waitFor(() => expect(getCookie('dir')).toBeUndefined())
+    // Direction now derives from the language: resetting restores the default
+    // language (Persian), which is right-to-left.
+    await vi.waitFor(() =>
+      expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe(
+        DEFAULT_LANGUAGE
+      )
+    )
     await vi.waitFor(() => expect(getCookie('vite-ui-theme')).toBeUndefined())
     await vi.waitFor(() => expect(getCookie('layout_variant')).toBe('inset'))
     await vi.waitFor(() => expect(getCookie('layout_collapsible')).toBe('icon'))
     await vi.waitFor(() =>
-      expect(document.documentElement.getAttribute('dir')).toBe('ltr')
+      expect(document.documentElement.getAttribute('dir')).toBe('rtl')
     )
   })
 })

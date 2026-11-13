@@ -11,6 +11,7 @@ import { ExternalLink, Loader2 } from 'lucide-react'
 import { ClerkLogo } from '@/assets/clerk-logo'
 import { Button } from '@/components/ui/button'
 import { ConfigDrawer } from '@/components/config-drawer'
+import { LanguageToggle } from '@/components/language-toggle'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { LearnMore } from '@/components/learn-more'
@@ -49,6 +50,7 @@ function UserManagement() {
     <UsersProvider>
       <Header fixed>
         <Search className='me-auto' />
+        <LanguageToggle />
         <ThemeSwitch />
         <ConfigDrawer />
         <UserButton />

@@ -1,12 +1,16 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import { DirectionProvider as RdxDirProvider } from '@radix-ui/react-direction'
-import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
+import { useTranslation } from 'react-i18next'
+import {
+  applyDocumentLanguage,
+  DEFAULT_LANGUAGE,
+  getLanguageDirection,
+  type Direction,
+} from '@/i18n/config'
 
-export type Direction = 'ltr' | 'rtl'
+const DEFAULT_DIRECTION: Direction = getLanguageDirection(DEFAULT_LANGUAGE)
 
-const DEFAULT_DIRECTION = 'ltr'
-const DIRECTION_COOKIE_NAME = 'dir'
-const DIRECTION_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+export type { Direction }
 
 type DirectionContextType = {
   defaultDir: Direction
@@ -18,23 +22,23 @@ type DirectionContextType = {
 const DirectionContext = createContext<DirectionContextType | null>(null)
 
 export function DirectionProvider({ children }: { children: React.ReactNode }) {
-  const [dir, _setDir] = useState<Direction>(
-    () => (getCookie(DIRECTION_COOKIE_NAME) as Direction) || DEFAULT_DIRECTION
-  )
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const dir = getLanguageDirection(language)
 
+  // i18next already applies this on `languageChanged`; re-applying on mount
+  // keeps `<html dir>`/`<html lang>` authoritative even if something else
+  // (a test, an extension or a prerender) touched the root element.
   useEffect(() => {
-    const htmlElement = document.documentElement
-    htmlElement.setAttribute('dir', dir)
-  }, [dir])
+    applyDocumentLanguage(language)
+  }, [language])
 
-  const setDir = (dir: Direction) => {
-    _setDir(dir)
-    setCookie(DIRECTION_COOKIE_NAME, dir, DIRECTION_COOKIE_MAX_AGE)
+  const setDir = (nextDir: Direction) => {
+    void i18n.changeLanguage(nextDir === 'rtl' ? 'fa' : 'en')
   }
 
   const resetDir = () => {
-    _setDir(DEFAULT_DIRECTION)
-    removeCookie(DIRECTION_COOKIE_NAME)
+    void i18n.changeLanguage(DEFAULT_LANGUAGE)
   }
 
   return (

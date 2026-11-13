@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Mehr Life OS exposes no native capabilities; the webview only talks to itself.",
+  "windows": ["main"],
+  "permissions": []
+}

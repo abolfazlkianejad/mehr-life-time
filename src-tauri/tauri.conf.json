@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mehr Life OS",
+  "version": "1.0.1",
+  "identifier": "com.mehrlifeos.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --port 1420 --strictPort",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Mehr Life OS",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost https:; img-src 'self' asset: http://asset.localhost data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Productivity",
+    "shortDescription": "Offline-first personal life and work operating system",
+    "longDescription": "Mehr Life OS is a bilingual (Persian/English), offline-first personal life and work operating system: tasks, education, projects, finance, nutrition, workouts, journaling, news radar and local backup — all stored on your own device.",
+    "publisher": "Mehr Life OS",
+    "copyright": "© 2026 Mehr Life OS",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Mehr Life OS",
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "installer-hooks.nsh"
+      }
+    }
+  }
+}

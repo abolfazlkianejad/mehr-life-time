@@ -13,6 +13,8 @@ dist-ssr
 *.local
 
 .env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -32,3 +34,17 @@ dist-ssr
 # Vitest artifacts (browser screenshots/attachments)
 **/__screenshots__/
 .vitest-attachments/
+
+# Tauri (Rust build outputs and generated schemas)
+/src-tauri/target/
+/src-tauri/gen/
+
+# Desktop installers (release artifacts live in GitHub Releases)
+/src-tauri/target/release/bundle/
+*.exe
+*.msi
+
+# Local backups of application data
+*-db-backup-*.json
+*.mehrbackup.json
+mehr-life-backup-*.json

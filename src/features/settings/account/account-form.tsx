@@ -28,7 +28,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { DatePicker } from '@/components/date-picker'
+import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { dateKeyOf } from '@/lib/jalali'
 
 const languages = [
   { label: 'English', value: 'en' },
@@ -95,7 +96,16 @@ export function AccountForm() {
           render={({ field }) => (
             <FormItem className='flex flex-col'>
               <FormLabel>Date of birth</FormLabel>
-              <DatePicker selected={field.value} onSelect={field.onChange} />
+              <JalaliDatePicker
+                value={field.value ? dateKeyOf(field.value) : ''}
+                onChange={(dateKey) =>
+                  field.onChange(
+                    dateKey ? new Date(`${dateKey}T00:00:00`) : undefined
+                  )
+                }
+                ariaLabel='Date of birth'
+                className='w-60'
+              />
               <FormDescription>
                 Your date of birth is used to calculate your age.
               </FormDescription>

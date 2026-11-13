@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { ConfigDrawer } from '@/components/config-drawer'
+import { LanguageToggle } from '@/components/language-toggle'
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
@@ -43,7 +44,8 @@ function MissingClerkPubKey() {
     <AuthenticatedLayout>
       <div className='bg-backgroundh-16 flex justify-between p-4'>
         <SidebarTrigger variant='outline' className='scale-125 sm:scale-100' />
-        <div className='space-x-4'>
+        <div className='flex items-center gap-4'>
+          <LanguageToggle />
           <ThemeSwitch />
           <ConfigDrawer />
         </div>
