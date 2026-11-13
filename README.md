@@ -6,9 +6,9 @@ Windows desktop app for personal life and work, with Persian/English, RTL, Jalal
 
 **Version: 1.0.1 · Target: Windows x64 (MSVC) · Installer: NSIS, current user**
 
-این نسخه روی Windows فعلی آزمایش شده است؛ انتشار عمومی هنوز تأیید نشده و مشکلات شناخته‌شدهٔ زیر باقی‌اند. برای macOS و Linux ساختی انجام نشده است.
+انتشار نسخهٔ 1.0.1 با تأیید مالک و با اعلام مشکلات شناخته‌شدهٔ زیر انجام می‌شود؛ این تأیید به معنی رفع همهٔ مشکلات نیست. نسخه روی Windows فعلی آزمایش شده است و برای macOS و Linux ساختی انجام نشده است.
 
-Tested on the current Windows machine, not yet approved for public release. No macOS or Linux build has been made.
+Version 1.0.1 publication is owner-authorized with the known limitations below; this authorization does not mean all issues are resolved. Tested on the current Windows machine. No macOS or Linux build has been made.
 
 ## تصاویر واقعی / Actual installed-app screenshots
 
@@ -129,8 +129,8 @@ src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Mehr Life OS_1.0.1_x
 - External new-window links did not open in the installed probe. Course/news external links need a targeted fix and real test.
 - lint: صفر خطا و ۸ هشدار؛ build: هشدار chunk بزرگ و هشدار محیط Vite.
 - Lint: zero errors, eight warnings; build: large-chunk and Vite environment warnings.
-- ممیزی npm یک advisory با شدت High در وابستگی غیرمستقیم `follow-redirects` نسخهٔ 1.16.1 گزارش کرده است؛ پیش از انتشار باید با lockfile نهایی بررسی و برطرف شود. این advisory به رفتار redirect در Node.js مربوط است؛ بهره‌برداری در WebView2 اثبات نشده است.
-- npm audit reported one High advisory in transitive `follow-redirects` 1.16.1; review and resolve against the authoritative lockfile before publication. This advisory concerns Node.js redirect handling; exploitation in WebView2 is not demonstrated.
+- ممیزی npm یک advisory با شدت High در وابستگی غیرمستقیم `follow-redirects` نسخهٔ 1.16.1 گزارش کرده است که در این انتشار برطرف نشده؛ بررسی و رفع آن با lockfile نهایی همچنان لازم است. این advisory به رفتار redirect در Node.js مربوط است؛ بهره‌برداری در WebView2 اثبات نشده است.
+- npm audit reported one unresolved High advisory in transitive `follow-redirects` 1.16.1 in this release; review and remediation against the authoritative lockfile remain necessary. This advisory concerns Node.js redirect handling; exploitation in WebView2 is not demonstrated.
 - فید خصوصی یا URL دارای رمز/token وارد نکنید؛ شکست درخواست مستقیم می‌تواند تمام URL را به سرویس واسط rss2json بفرستد. پاسخ فید محدودیت اندازهٔ صریح ندارد.
 - Do not enter private or credential/token-bearing feed URLs: a failed direct request can send the complete URL to rss2json. Feed response size is not explicitly capped.
 - اعتبارسنجی backup ساختار، store و کلیدها را بررسی می‌کند، نه schema کامل تمام فیلدها؛ فقط backup مورداعتماد خود را وارد کنید. XSS از این مسیر اثبات نشده است.
@@ -159,3 +159,80 @@ The UI derives from Shadcn Admin by Sat Naing and Shadcn UI / Radix UI component
 **پیشنهاد برای تصمیم مالک:** در صورت انتشار متن‌باز، MIT گزینهٔ ساده‌ای است؛ تصمیم نهایی، بررسی حقوق اجزای ثالث و مجوز نام/دارایی‌ها نیازمند تأیید است. این پیشنهاد، انتخاب مجوز محسوب نمی‌شود.
 
 **Owner decision proposal:** MIT is a simple option for an open-source release, subject to owner approval and third-party/asset rights review. This proposal does not select a license.
+
+---
+
+## پروژهٔ موجود تلگرام / Existing Telegram project
+
+پروژهٔ Python/Telegram موجود، تمام فایل‌ها، تست‌ها و تاریخچهٔ آن حفظ شده‌اند. نسخهٔ نصب Windows مستقل از این backend اجرا می‌شود؛ ارتباط خودکار یا یکپارچه‌سازی بین این دو پیاده‌سازی ادعا نمی‌شود. راهنمای قبلی آن بدون حذف محتوا در ادامه آمده است.
+
+The existing Python/Telegram project, its files, tests and history are preserved. The Windows installer runs independently of this backend; no automatic integration between the two implementations is claimed. Its original documentation is retained below.
+
+# Mehr Life Time
+
+دستیار برنامه‌ریزی شخصی در تلگرام با سوپرگروه خصوصی و تاپیک برای هر حوزهٔ زندگی. بات از مدیر دسترسی می‌گیرد، رضایت استفاده از AI را ثبت می‌کند، سپس فضای تلگرامی هر کاربر را آماده می‌سازد.
+
+## قابلیت‌های برنامه‌ریزی
+
+- معارفهٔ تطبیقی با حدود ۲۰ سؤال و سقف ۳۰ سؤال؛ حوزه‌ها، تعهدهای ثابت، اولویت‌ها، خواب، زمان آزاد و محدودیت‌ها در حافظهٔ شخصی نگه‌داری می‌شوند.
+- ساخت تاپیک جدا برای هر حوزه و تاپیک جدا برای پروژه‌های بزرگ.
+- دریافت هدف یا پروژه با پیام طبیعی، دکمه یا فایل متنی، PDF و Word. AI تا روشن‌شدن محدوده، کارهای باقی‌مانده و برآورد زمان، برنامه نمی‌سازد.
+- شکستن هدف به تسک، چیدن آن‌ها در بازه‌های آزاد، انتشار برنامه در تاپیک حوزه و هشدار دربارهٔ گام‌هایی که تا موعد جا نمی‌شوند.
+- برنامهٔ هفتگی از شنبه ساعت ۰۶:۰۰ و برنامهٔ روزانه هر روز ساعت ۰۶:۰۰ به وقت تهران.
+- دکمه‌های شروع و اتمام، ثبت زمان واقعی و تطبیق تدریجی برآورد مدت با لاگ‌های شخصی.
+- پیگیری در موعد پایان و حداکثر سه یادآوری با فاصلهٔ ۱۵ دقیقه؛ تسک ناتمام باز می‌ماند و به بازهٔ آزاد بعد منتقل می‌شود.
+- کیبورد ثابت برای افزودن هدف، برنامهٔ هفتگی، شروع/اتمام، پیشرفت و حوزه‌ها.
+
+پیام‌ها و فایل‌های کاربر فقط به نمونهٔ Ollama روی همین دستگاه/سرور (`localhost` یا `127.0.0.1`) فرستاده می‌شوند. جست‌وجوی وب برای محتوای کاربر در این نسخه غیرفعال است تا مقصد و دادهٔ ارسالی با رضایت مشخص کاربر تأیید شود.
+
+## پیش‌نیازها
+
+- Python 3.11 یا بالاتر
+- توکن بات تلگرام
+- Ollama محلی و یک مدل چت، مانند مدل تنظیم‌شده در `.env`
+- حساب کاربری اختصاصی تلگرام برای ساخت سوپرگروه‌های کاربران
+- `api_id` و `api_hash` از `my.telegram.org`
+
+حساب اختصاصی سامانه سازنده و مالک گروه‌ها می‌ماند و در گروه‌ها حضور دارد. این موضوع در صفحهٔ رضایت کاربر اعلام می‌شود.
+
+## راه‌اندازی
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+مقادیر `TELEGRAM_BOT_TOKEN`، `TELEGRAM_ALLOWED_USER_IDS` یا `TELEGRAM_ADMIN_CHAT_ID` و اطلاعات API حساب اختصاصی را در `.env` تنظیم کنید. مدل پیش‌فرض فقط به Ollama محلی متصل می‌شود.
+
+برای ساخت کلید رمزگذاری نشست:
+
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+کلید را در `TELEGRAM_SESSION_ENCRYPTION_KEY` بگذارید. سپس از ترمینال محلی، ورود حساب اختصاصی را یک‌بار انجام دهید:
+
+```powershell
+python scripts/authorize_telegram_account.py
+```
+
+کد ورود و رمز دومرحله‌ای فقط در همان ترمینال وارد می‌شود. فایل نشست رمزگذاری‌شده در مسیر `TELEGRAM_USER_SESSION` ذخیره می‌شود؛ فایل نشست و کلید را در مخزن Git قرار ندهید.
+
+در Telegram BotFather، بات را طوری تنظیم کنید که بتواند به گروه‌ها اضافه شود. ساخت گروه/تاپیک و عضویت مستقیم کاربر به سیاست‌های تلگرام و دسترسی حساب اختصاصی بستگی دارد. اگر تلگرام افزودن مستقیم کاربر را نپذیرد، لینک دعوت برای او فرستاده می‌شود؛ اگر افزودن بات هم رد شود، کاربر باید آن را به گروه اضافه کند.
+
+## اجرا
+
+```powershell
+python -m app.main
+```
+
+API سلامت اختیاری:
+
+```powershell
+uvicorn app.api:app --host 127.0.0.1 --port 8000
+```
+
+پایگاه‌دادهٔ پیش‌فرض در `data/mehr_life_time.db` ساخته می‌شود. بات و API را هر دو با دسترسی شبکهٔ محدود اجرا کنید.

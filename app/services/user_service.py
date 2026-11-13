@@ -1,0 +1,70 @@
+"""User management business logic and database interactions."""
+
+import logging
+from typing import Optional
+from sqlalchemy.orm import Session
+from app.db.base import User
+
+logger = logging.getLogger("mehr_life_time.services.user_service")
+
+
+def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[User]:
+    """Retrieve a user by their unique Telegram user ID."""
+    return db.query(User).filter(User.telegram_id == telegram_id).first()
+
+
+def register_user(
+    db: Session,
+    telegram_id: int,
+    username: Optional[str] = None,
+    full_name: Optional[str] = None,
+    role: str = "user",
+) -> User:
+    """Register or return an existing user with initial privileges."""
+    user = get_user_by_telegram_id(db, telegram_id)
+    if user:
+        return user
+
+    user = User(
+        telegram_id=telegram_id,
+        username=username,
+        full_name=full_name,
+        role=role,
+        is_active=True if role == "admin" else False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def approve_user(db: Session, user_identifier: int) -> Optional[User]:
+    """Approve a user by either internal user.id or telegram_id."""
+    user = (
+        db.query(User)
+        .filter((User.id == user_identifier) | (User.telegram_id == user_identifier))
+        .first()
+    )
+    if not user:
+        return None
+
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def reject_user(db: Session, user_identifier: int) -> tuple[int, str | None] | None:
+    """Reject and delete a user by either internal user.id or telegram_id."""
+    user = (
+        db.query(User)
+        .filter((User.id == user_identifier) | (User.telegram_id == user_identifier))
+        .first()
+    )
+    if not user:
+        return None
+
+    rejected_user = (user.telegram_id, user.full_name)
+    db.delete(user)
+    db.commit()
+    return rejected_user

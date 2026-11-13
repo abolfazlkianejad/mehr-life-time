@@ -48,3 +48,62 @@ dist-ssr
 *-db-backup-*.json
 *.mehrbackup.json
 mehr-life-backup-*.json
+
+# Python artifacts (preserved from the existing Telegram project)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables and secrets
+.env
+
+# SQLite database files and Telegram sessions
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.session
+*.session-journal
+*.session.enc
+
+# IDE and editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+logs/
+*.log
+
+# Keep TypeScript source utilities trackable despite Python's lib/ rule
+!/src/lib/
+!/src/lib/**
