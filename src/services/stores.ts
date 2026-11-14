@@ -37,3 +37,9 @@ export const STORE_CARDIO_LOGS = 'cardioLogs'
 // independent education paths.
 export const STORE_EDUCATION_TASKS = 'educationTasks'
 export const STORE_EDUCATION_REPORTS = 'educationReports'
+// v12 stores: weekly gym plans, their exercises and the real performance
+// sessions with per-exercise sets. Session history is independent of the plan.
+export const STORE_GYM_PLANS = 'gymPlans'
+export const STORE_GYM_EXERCISES = 'gymExercises'
+export const STORE_GYM_SESSIONS = 'gymSessions'
+export const STORE_GYM_SESSION_SETS = 'gymSessionSets'

@@ -60,6 +60,10 @@ import {
   STORE_ENERGY_LOGS,
   STORE_FINANCE_ENTRIES,
   STORE_FINANCE_SETTINGS,
+  STORE_GYM_EXERCISES,
+  STORE_GYM_PLANS,
+  STORE_GYM_SESSION_SETS,
+  STORE_GYM_SESSIONS,
   STORE_LEGACY_TASKS,
   STORE_MEAL_LOGS,
   STORE_META,
@@ -79,10 +83,10 @@ import {
 } from '@/services/stores'
 
 export const DB_NAME = 'mehr-life-os'
-// v11 is additive only: opening a v10 database keeps every existing store and
-// record, then creates the stores for education tasks and their progress
-// reports. No destructive migration is used.
-export const DB_VERSION = 11
+// v12 is additive only: opening a v11 database keeps every existing store and
+// record, then creates the gym plan/session stores. No destructive migration
+// is used and previously recorded workout logs stay untouched.
+export const DB_VERSION = 12
 
 export {
   STORE_BODY_WEIGHTS,
@@ -95,6 +99,10 @@ export {
   STORE_ENERGY_LOGS,
   STORE_FINANCE_ENTRIES,
   STORE_FINANCE_SETTINGS,
+  STORE_GYM_EXERCISES,
+  STORE_GYM_PLANS,
+  STORE_GYM_SESSION_SETS,
+  STORE_GYM_SESSIONS,
   STORE_LEGACY_TASKS,
   STORE_MEAL_LOGS,
   STORE_META,
@@ -181,6 +189,32 @@ export const STORE_DEFINITIONS: StoreDefinition[] = [
       { name: 'by_task', keyPath: 'taskId' },
       { name: 'by_date_key', keyPath: 'dateKey' },
       { name: 'by_track', keyPath: 'track' },
+    ],
+  },
+  // v12 gym stores. Plans are keyed by weekday (Saturday-first index 0..6);
+  // exercises and sessions use generated ids. Session sets reference their
+  // session and the plan exercise they were performed for, and keep an
+  // exercise-name snapshot so history survives later plan edits.
+  { name: STORE_GYM_PLANS, keyPath: 'weekday', indexes: [] },
+  {
+    name: STORE_GYM_EXERCISES,
+    keyPath: 'id',
+    indexes: [{ name: 'by_weekday', keyPath: 'weekday' }],
+  },
+  {
+    name: STORE_GYM_SESSIONS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_date_key', keyPath: 'dateKey' },
+      { name: 'by_status', keyPath: 'status' },
+    ],
+  },
+  {
+    name: STORE_GYM_SESSION_SETS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_session', keyPath: 'sessionId' },
+      { name: 'by_exercise', keyPath: 'exerciseId' },
     ],
   },
 ]
@@ -1646,6 +1680,7 @@ export async function resetDatabase(): Promise<void> {
     STORE_EDUCATION_ITEMS, STORE_PROJECTS, STORE_PROJECT_NOTES,
     STORE_SOCIAL_ACTIVITIES, STORE_CARDIO_LOGS,
     STORE_EDUCATION_TASKS, STORE_EDUCATION_REPORTS,
+    STORE_GYM_PLANS, STORE_GYM_EXERCISES, STORE_GYM_SESSIONS, STORE_GYM_SESSION_SETS,
   ])
   initializationPromise = null
   startupRolloverPromise = null
