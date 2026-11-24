@@ -1,7 +1,6 @@
 import { toDateKey } from '@/lib/date-key'
 import { createId } from '@/lib/id'
 import { getDatabase } from '@/services/db'
-import { STORE_CARDIO_LOGS } from '@/services/stores'
 import {
   deleteRecords,
   getAllFromIndex,
@@ -9,6 +8,7 @@ import {
   getRecord,
   putRecords,
 } from '@/services/idb'
+import { STORE_CARDIO_LOGS } from '@/services/stores'
 
 /**
  * A cardio / activity session that burns calories.
@@ -28,15 +28,12 @@ export interface CardioLog {
   createdAt: string
 }
 
-export type CardioLogInput = Omit<
-  CardioLog,
-  'id' | 'dateKey' | 'createdAt'
-> & { id?: string; date?: string | number | Date }
+export type CardioLogInput = Omit<CardioLog, 'id' | 'dateKey' | 'createdAt'> & {
+  id?: string
+  date?: string | number | Date
+}
 
-function buildCardioLog(
-  input: CardioLogInput,
-  base?: CardioLog
-): CardioLog {
+function buildCardioLog(input: CardioLogInput, base?: CardioLog): CardioLog {
   if (!input.activity.trim()) throw new RangeError('activity is required')
   if (!Number.isInteger(input.minutes) || input.minutes < 1) {
     throw new RangeError('minutes must be a positive whole number')
@@ -45,7 +42,9 @@ function buildCardioLog(
     throw new RangeError('calories must be a non-negative whole number')
   }
   const now = new Date().toISOString()
-  const dateKey = input.date ? toDateKey(input.date) : (base?.dateKey ?? toDateKey(new Date()))
+  const dateKey = input.date
+    ? toDateKey(input.date)
+    : (base?.dateKey ?? toDateKey(new Date()))
   return {
     id: base?.id ?? input.id ?? createId('cardio'),
     dateKey,
@@ -80,7 +79,11 @@ export async function getCardioLogsByRange(
   const toKey = toDateKey(to)
   return rows
     .filter((row) => row.dateKey >= fromKey && row.dateKey <= toKey)
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.createdAt.localeCompare(b.createdAt))
+    .sort(
+      (a, b) =>
+        a.dateKey.localeCompare(b.dateKey) ||
+        a.createdAt.localeCompare(b.createdAt)
+    )
 }
 
 export async function saveCardioLog(input: CardioLogInput): Promise<CardioLog> {

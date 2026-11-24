@@ -1,3 +1,4 @@
+import { createId } from '@/lib/id'
 import {
   getDatabase,
   isLearningTrack,
@@ -11,16 +12,24 @@ import {
   getRecord,
   putRecords,
 } from '@/services/idb'
-import { createId } from '@/lib/id'
 
 /**
  * Learning tracks are fully independent: every subject, topic or course lives
  * in exactly one track and progress is reported per track.
  */
-export const LEARNING_ITEM_TYPES = ['subject', 'topic', 'course', 'assignment'] as const
+export const LEARNING_ITEM_TYPES = [
+  'subject',
+  'topic',
+  'course',
+  'assignment',
+] as const
 export type LearningItemType = (typeof LEARNING_ITEM_TYPES)[number]
 
-export const LEARNING_ITEM_STATUSES = ['planned', 'active', 'completed'] as const
+export const LEARNING_ITEM_STATUSES = [
+  'planned',
+  'active',
+  'completed',
+] as const
 export type LearningItemStatus = (typeof LEARNING_ITEM_STATUSES)[number]
 
 /** Alias kept for the UI layer. */
@@ -117,9 +126,12 @@ export function normalizeEducationItem(row: unknown): EducationItem | null {
   const id = typeof value.id === 'string' ? value.id.trim() : ''
   if (!id) return null
   const rawTrack = typeof value.track === 'string' ? value.track : ''
-  const track = isLearningTrack(rawTrack) ? rawTrack : LEGACY_TRACK_ALIASES[rawTrack]
+  const track = isLearningTrack(rawTrack)
+    ? rawTrack
+    : LEGACY_TRACK_ALIASES[rawTrack]
   if (!track) return null
-  const createdAt = timestampOf(value.createdAt) ?? timestampOf(value.updatedAt) ?? ''
+  const createdAt =
+    timestampOf(value.createdAt) ?? timestampOf(value.updatedAt) ?? ''
   const updatedAt = timestampOf(value.updatedAt) ?? createdAt
   const rawStatus = value.status as LearningItemStatus
   const rawType = value.type as LearningItemType
@@ -132,46 +144,71 @@ export function normalizeEducationItem(row: unknown): EducationItem | null {
     track,
     type: LEARNING_ITEM_TYPES.includes(rawType) ? rawType : 'course',
     title: typeof value.title === 'string' ? value.title.trim() : '',
-    ...(optionalText(typeof value.description === 'string' ? value.description : undefined)
+    ...(optionalText(
+      typeof value.description === 'string' ? value.description : undefined
+    )
       ? { description: optionalText(value.description as string) }
       : {}),
     status: LEARNING_ITEM_STATUSES.includes(rawStatus) ? rawStatus : 'planned',
-    progress: progress === undefined ? 0 : Math.max(0, Math.min(100, Math.round(progress))),
-    ...(targetMinutes !== undefined && Number.isInteger(targetMinutes) && targetMinutes >= 0
+    progress:
+      progress === undefined
+        ? 0
+        : Math.max(0, Math.min(100, Math.round(progress))),
+    ...(targetMinutes !== undefined &&
+    Number.isInteger(targetMinutes) &&
+    targetMinutes >= 0
       ? { targetMinutes }
       : {}),
-    ...(typeof value.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.dueDate)
+    ...(typeof value.dueDate === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value.dueDate)
       ? { dueDate: value.dueDate }
       : {}),
-    ...(optionalText(typeof value.resources === 'string' ? value.resources : undefined)
+    ...(optionalText(
+      typeof value.resources === 'string' ? value.resources : undefined
+    )
       ? { resources: optionalText(value.resources as string) }
       : {}),
-    ...(credits !== undefined && Number.isInteger(credits) && credits >= 0 && credits <= 60
+    ...(credits !== undefined &&
+    Number.isInteger(credits) &&
+    credits >= 0 &&
+    credits <= 60
       ? { credits }
       : {}),
-    ...(optionalText(typeof value.professor === 'string' ? value.professor : undefined)
+    ...(optionalText(
+      typeof value.professor === 'string' ? value.professor : undefined
+    )
       ? { professor: optionalText(value.professor as string) }
       : {}),
-    ...(optionalText(typeof value.semester === 'string' ? value.semester : undefined)
+    ...(optionalText(
+      typeof value.semester === 'string' ? value.semester : undefined
+    )
       ? { semester: optionalText(value.semester as string) }
       : {}),
-    ...(optionalText(typeof value.instructor === 'string' ? value.instructor : undefined)
+    ...(optionalText(
+      typeof value.instructor === 'string' ? value.instructor : undefined
+    )
       ? { instructor: optionalText(value.instructor as string) }
       : {}),
-    ...(optionalText(typeof value.platform === 'string' ? value.platform : undefined)
+    ...(optionalText(
+      typeof value.platform === 'string' ? value.platform : undefined
+    )
       ? { platform: optionalText(value.platform as string) }
       : {}),
     ...(optionalText(typeof value.url === 'string' ? value.url : undefined)
       ? { url: optionalText(value.url as string) }
       : {}),
-    ...(estimatedHours !== undefined && estimatedHours >= 0 ? { estimatedHours } : {}),
+    ...(estimatedHours !== undefined && estimatedHours >= 0
+      ? { estimatedHours }
+      : {}),
     createdAt,
     updatedAt,
   }
 }
 
 /** Sortable creation time; malformed legacy records sort first instead of throwing. */
-export function educationItemCreatedTime(item: Pick<EducationItem, 'createdAt'>): number {
+export function educationItemCreatedTime(
+  item: Pick<EducationItem, 'createdAt'>
+): number {
   const time = Date.parse(item.createdAt)
   return Number.isFinite(time) ? time : 0
 }
@@ -182,17 +219,29 @@ function buildItem(
 ): EducationItem {
   const track = assertTrack(input.track)
   if (!input.title.trim()) throw new RangeError('title is required')
-  if (!LEARNING_ITEM_TYPES.includes(input.type)) throw new RangeError('unknown learning item type')
-  if (!LEARNING_ITEM_STATUSES.includes(input.status)) throw new RangeError('unknown learning item status')
+  if (!LEARNING_ITEM_TYPES.includes(input.type))
+    throw new RangeError('unknown learning item type')
+  if (!LEARNING_ITEM_STATUSES.includes(input.status))
+    throw new RangeError('unknown learning item status')
   const progress = Math.max(0, Math.min(100, Math.round(input.progress)))
-  if (input.targetMinutes !== undefined && (!Number.isInteger(input.targetMinutes) || input.targetMinutes < 0)) {
+  if (
+    input.targetMinutes !== undefined &&
+    (!Number.isInteger(input.targetMinutes) || input.targetMinutes < 0)
+  ) {
     throw new RangeError('target minutes must be a non-negative whole number')
   }
-  if (input.dueDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) {
+  if (
+    input.dueDate !== undefined &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)
+  ) {
     throw new RangeError('due date must use YYYY-MM-DD')
   }
   if (input.credits !== undefined) {
-    if (!Number.isInteger(input.credits) || input.credits < 0 || input.credits > 60) {
+    if (
+      !Number.isInteger(input.credits) ||
+      input.credits < 0 ||
+      input.credits > 60
+    ) {
       throw new RangeError('credits must be a whole number between 0 and 60')
     }
   }
@@ -218,19 +267,35 @@ function buildItem(
     track,
     type: input.type,
     title: input.title.trim(),
-    ...(optionalText(input.description) ? { description: optionalText(input.description) } : {}),
+    ...(optionalText(input.description)
+      ? { description: optionalText(input.description) }
+      : {}),
     status: input.status,
     progress,
-    ...(input.targetMinutes !== undefined ? { targetMinutes: input.targetMinutes } : {}),
+    ...(input.targetMinutes !== undefined
+      ? { targetMinutes: input.targetMinutes }
+      : {}),
     ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
-    ...(optionalText(input.resources) ? { resources: optionalText(input.resources) } : {}),
+    ...(optionalText(input.resources)
+      ? { resources: optionalText(input.resources) }
+      : {}),
     ...(input.credits !== undefined ? { credits: input.credits } : {}),
-    ...(optionalText(input.professor) ? { professor: optionalText(input.professor) } : {}),
-    ...(optionalText(input.semester) ? { semester: optionalText(input.semester) } : {}),
-    ...(optionalText(input.instructor) ? { instructor: optionalText(input.instructor) } : {}),
-    ...(optionalText(input.platform) ? { platform: optionalText(input.platform) } : {}),
+    ...(optionalText(input.professor)
+      ? { professor: optionalText(input.professor) }
+      : {}),
+    ...(optionalText(input.semester)
+      ? { semester: optionalText(input.semester) }
+      : {}),
+    ...(optionalText(input.instructor)
+      ? { instructor: optionalText(input.instructor) }
+      : {}),
+    ...(optionalText(input.platform)
+      ? { platform: optionalText(input.platform) }
+      : {}),
     ...(url ? { url } : {}),
-    ...(input.estimatedHours !== undefined ? { estimatedHours: input.estimatedHours } : {}),
+    ...(input.estimatedHours !== undefined
+      ? { estimatedHours: input.estimatedHours }
+      : {}),
     createdAt: timestampOf(base?.createdAt) ?? now,
     updatedAt: now,
   }
@@ -242,7 +307,12 @@ export async function getEducationItems(
 ): Promise<EducationItem[]> {
   const db = await getDatabase()
   const rows = track
-    ? await getAllFromIndex<unknown>(db, STORE_EDUCATION_ITEMS, 'by_track', track)
+    ? await getAllFromIndex<unknown>(
+        db,
+        STORE_EDUCATION_ITEMS,
+        'by_track',
+        track
+      )
     : await getAllRecords<unknown>(db, STORE_EDUCATION_ITEMS)
   const items = rows
     .map((row) => normalizeEducationItem(row))

@@ -68,7 +68,9 @@ describe('local data backup', () => {
     const expectedRecords = countBackupRecords(backup)
 
     await clearAllData()
-    expect(Object.values(await getStoreCounts()).every((count) => count === 0)).toBe(true)
+    expect(
+      Object.values(await getStoreCounts()).every((count) => count === 0)
+    ).toBe(true)
 
     const restored = await restoreBackup(asJson(backup))
     expect(restored).toBe(expectedRecords)

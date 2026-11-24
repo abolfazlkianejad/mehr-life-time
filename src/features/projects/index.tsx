@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import type { TimelineBlockRecord } from '@/types/timeline'
+import { Clock, FolderGit2, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { FolderGit2, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Header } from '@/components/layout/header'
-import { HeaderActions } from '@/components/header-actions'
-import { Main } from '@/components/layout/main'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { formatJalaliDateKey } from '@/lib/jalali'
+import { timelineBlockSeconds } from '@/lib/work-time'
 import {
   deleteProject,
   deleteProjectNote,
@@ -24,9 +18,25 @@ import {
   type ProjectPriority,
   type ProjectStatus,
 } from '@/services/projects'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { HeaderActions } from '@/components/header-actions'
+import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { formatHoursMinutes } from '@/features/goals/goal-utils'
 import { projectProgress } from '@/features/projects/project-utils'
-import { formatJalaliDateKey } from '@/lib/jalali'
-import type { TimelineBlockRecord } from '@/types/timeline'
+import { WorkTasksPanel } from '@/features/tasks/work-tasks-page'
 
 interface ProjectFormState {
   id?: string
@@ -57,7 +67,29 @@ interface ProjectView {
   notes: ProjectNote[]
 }
 
-export function ProjectsPage() {
+const STATUSES = [
+  'planned',
+  'active',
+  'paused',
+  'completed',
+  'archived',
+] as const
+
+function ProgressBar({ percent }: { percent: number }) {
+  return (
+    <div
+      className='h-2 w-full overflow-hidden rounded-full bg-muted'
+      role='presentation'
+    >
+      <div
+        className={`h-full rounded-full transition-all ${percent >= 100 ? 'bg-emerald-500' : 'bg-primary'}`}
+        style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+      />
+    </div>
+  )
+}
+
+export function ProjectsPanel() {
   const { t } = useTranslation()
   const [views, setViews] = useState<ProjectView[]>([])
   const [form, setForm] = useState<ProjectFormState>(emptyForm)
@@ -83,7 +115,6 @@ export function ProjectsPage() {
     void load()
       .catch(() => setError(t('projects.errors.load')))
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only depends on the translator
   }, [t])
 
   const visible = useMemo(
@@ -109,7 +140,9 @@ export function ProjectsPage() {
       tags: form.tags.split(/[,،]/),
       ...(form.startDate ? { startDate: form.startDate } : {}),
       ...(form.endDate ? { endDate: form.endDate } : {}),
-      ...(form.repositoryUrl.trim() ? { repositoryUrl: form.repositoryUrl.trim() } : {}),
+      ...(form.repositoryUrl.trim()
+        ? { repositoryUrl: form.repositoryUrl.trim() }
+        : {}),
     }
     try {
       if (form.id) await updateProject(form.id, payload)
@@ -168,211 +201,347 @@ export function ProjectsPage() {
   }
 
   return (
+    <div className='flex flex-col gap-5'>
+      {error ? (
+        <p role='alert' className='text-sm text-destructive'>
+          {error}
+        </p>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className='flex items-center gap-2'>
+            <Plus className='size-5' />
+            {form.id ? t('projects.editProject') : t('projects.addProject')}
+          </CardTitle>
+          <CardDescription>{t('projects.formHint')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'
+            onSubmit={(event) => void save(event)}
+          >
+            <Input
+              required
+              value={form.title}
+              onChange={(event) =>
+                setForm({ ...form, title: event.target.value })
+              }
+              placeholder={t('projects.titlePlaceholder')}
+            />
+            <select
+              aria-label={t('projects.status')}
+              className='h-9 rounded-md border bg-background px-3 text-sm'
+              value={form.status}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  status: event.target.value as ProjectStatus,
+                })
+              }
+            >
+              {STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {t(`projects.statuses.${status}`)}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={t('projects.priority')}
+              className='h-9 rounded-md border bg-background px-3 text-sm'
+              value={form.priority}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  priority: event.target.value as ProjectPriority,
+                })
+              }
+            >
+              {(['low', 'medium', 'high'] as const).map((priority) => (
+                <option key={priority} value={priority}>
+                  {t(`projects.priorities.${priority}`)}
+                </option>
+              ))}
+            </select>
+            <JalaliDatePicker
+              value={form.startDate}
+              onChange={(dateKey) => setForm({ ...form, startDate: dateKey })}
+              ariaLabel={t('projects.startDate')}
+              clearable
+            />
+            <JalaliDatePicker
+              value={form.endDate}
+              onChange={(dateKey) => setForm({ ...form, endDate: dateKey })}
+              ariaLabel={t('projects.endDate')}
+              clearable
+            />
+            <Input
+              value={form.tags}
+              onChange={(event) =>
+                setForm({ ...form, tags: event.target.value })
+              }
+              placeholder={t('projects.tags')}
+            />
+            <Input
+              className='md:col-span-2 xl:col-span-2'
+              value={form.repositoryUrl}
+              onChange={(event) =>
+                setForm({ ...form, repositoryUrl: event.target.value })
+              }
+              placeholder={t('projects.repository')}
+            />
+            <Textarea
+              className='md:col-span-2 xl:col-span-3'
+              value={form.description}
+              onChange={(event) =>
+                setForm({ ...form, description: event.target.value })
+              }
+              placeholder={t('projects.description')}
+            />
+            <div className='flex gap-2 md:col-span-2 xl:col-span-3'>
+              <Button type='submit'>
+                <FolderGit2 className='me-2 size-4' />
+                {form.id ? t('projects.update') : t('projects.save')}
+              </Button>
+              {form.id ? (
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setForm(emptyForm())}
+                >
+                  <X className='me-2 size-4' />
+                  {t('projects.cancel')}
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className='flex flex-wrap gap-2'>
+        <Button
+          variant={statusFilter === 'all' ? 'secondary' : 'outline'}
+          size='sm'
+          onClick={() => setStatusFilter('all')}
+        >
+          {t('projects.allStatuses')}
+        </Button>
+        {STATUSES.map((status) => (
+          <Button
+            key={status}
+            variant={statusFilter === status ? 'secondary' : 'outline'}
+            size='sm'
+            onClick={() => setStatusFilter(status)}
+          >
+            {t(`projects.statuses.${status}`)}
+          </Button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p role='status' className='text-sm text-muted-foreground'>
+          {t('projects.loading')}
+        </p>
+      ) : visible.length ? (
+        <div className='grid gap-4 lg:grid-cols-2'>
+          {visible.map(({ project, tasks, notes }) => {
+            const progress = projectProgress(tasks)
+            const trackedSeconds = tasks.reduce(
+              (total, task) => total + timelineBlockSeconds(task),
+              0
+            )
+            return (
+              <Card key={project.id}>
+                <CardHeader>
+                  <div className='flex flex-wrap items-start justify-between gap-2'>
+                    <div>
+                      <CardTitle className='text-lg'>{project.title}</CardTitle>
+                      <CardDescription>
+                        {t(`projects.statuses.${project.status}`)} ·{' '}
+                        {t(`projects.priorities.${project.priority}`)}
+                        {project.startDate
+                          ? ` · ${t('projects.startDate')}: ${formatJalaliDateKey(project.startDate)}`
+                          : ''}
+                        {project.endDate
+                          ? ` · ${t('projects.endDate')}: ${formatJalaliDateKey(project.endDate)}`
+                          : ''}
+                      </CardDescription>
+                    </div>
+                    <div className='flex gap-1'>
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        aria-label={t('projects.edit')}
+                        onClick={() => edit(project)}
+                      >
+                        <Pencil className='size-4' />
+                      </Button>
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        aria-label={t('projects.delete')}
+                        onClick={() => void remove(project)}
+                      >
+                        <Trash2 className='size-4' />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {project.description ? (
+                    <p className='text-sm text-muted-foreground'>
+                      {project.description}
+                    </p>
+                  ) : null}
+                  {project.tags.length ? (
+                    <div className='flex flex-wrap gap-1'>
+                      {project.tags.map((tag) => (
+                        <Badge key={tag} variant='outline'>
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className='space-y-2 rounded-lg border p-3'>
+                    <div className='flex flex-wrap items-center justify-between gap-2 text-sm'>
+                      <span className='font-medium'>
+                        {t('projects.progress')}: {progress.percent}%
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('dashboard.completedTasks', {
+                          done: progress.done,
+                          total: progress.total,
+                        })}
+                      </span>
+                    </div>
+                    <ProgressBar percent={progress.percent} />
+                    <p className='text-xs text-muted-foreground'>
+                      {progress.total
+                        ? t('projectsPage.progressAuto')
+                        : t('projectsPage.noTasksProgress')}
+                    </p>
+                  </div>
+
+                  <div className='flex flex-wrap items-center gap-2'>
+                    <Badge variant='outline' className='tabular-nums'>
+                      <Clock className='me-1 size-3.5' />
+                      {t('projectsPage.hours')}:{' '}
+                      {formatHoursMinutes(trackedSeconds)}
+                    </Badge>
+                  </div>
+
+                  <div className='space-y-1 text-sm'>
+                    <p className='font-medium'>{t('projects.linkedTasks')}</p>
+                    {tasks.length ? (
+                      tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className='flex items-center justify-between gap-2 border-b py-1 text-xs last:border-0'
+                        >
+                          <span>{task.title}</span>
+                          <Badge
+                            variant={
+                              task.status === 'completed'
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                          >
+                            {t(`tasks.status.${task.status}`)}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <p className='text-muted-foreground'>
+                        {t('projects.noLinkedTasks')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className='space-y-2'>
+                    <p className='text-sm font-medium'>{t('projects.notes')}</p>
+                    {notes.length ? (
+                      notes.map((note) => (
+                        <div
+                          key={note.id}
+                          className='flex items-start justify-between gap-2 rounded-md border p-2 text-sm'
+                        >
+                          <span>{note.text}</span>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            aria-label={t('projects.deleteNote')}
+                            onClick={() => void removeNote(note)}
+                          >
+                            <Trash2 className='size-4' />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className='text-xs text-muted-foreground'>
+                        {t('projects.noNotes')}
+                      </p>
+                    )}
+                    <div className='flex gap-2'>
+                      <Input
+                        value={noteText[project.id] ?? ''}
+                        onChange={(event) =>
+                          setNoteText((all) => ({
+                            ...all,
+                            [project.id]: event.target.value,
+                          }))
+                        }
+                        placeholder={t('projects.notePlaceholder')}
+                      />
+                      <Button
+                        variant='outline'
+                        onClick={() => void addNote(project.id)}
+                      >
+                        {t('projects.addNote')}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <p className='text-sm text-muted-foreground'>{t('projects.empty')}</p>
+      )}
+    </div>
+  )
+}
+
+export function ProjectsPage() {
+  const { t } = useTranslation()
+  return (
     <>
       <Header fixed>
         <HeaderActions />
       </Header>
       <Main className='flex flex-1 flex-col gap-5'>
         <div>
-          <h2 className='text-2xl font-bold'>{t('projects.title')}</h2>
-          <p className='text-muted-foreground'>{t('projects.subtitle')}</p>
+          <h2 className='text-2xl font-bold'>{t('projectsPage.title')}</h2>
+          <p className='text-muted-foreground'>{t('projectsPage.subtitle')}</p>
         </div>
 
-        {error ? <p role='alert' className='text-sm text-destructive'>{error}</p> : null}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <Plus className='size-5' />
-              {form.id ? t('projects.editProject') : t('projects.addProject')}
-            </CardTitle>
-            <CardDescription>{t('projects.formHint')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className='grid gap-3 md:grid-cols-2 xl:grid-cols-3' onSubmit={(event) => void save(event)}>
-              <Input
-                required
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder={t('projects.titlePlaceholder')}
-              />
-              <select
-                aria-label={t('projects.status')}
-                className='h-9 rounded-md border bg-background px-3 text-sm'
-                value={form.status}
-                onChange={(event) => setForm({ ...form, status: event.target.value as ProjectStatus })}
-              >
-                {(['planned', 'active', 'paused', 'completed', 'archived'] as const).map((status) => (
-                  <option key={status} value={status}>
-                    {t(`projects.statuses.${status}`)}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label={t('projects.priority')}
-                className='h-9 rounded-md border bg-background px-3 text-sm'
-                value={form.priority}
-                onChange={(event) => setForm({ ...form, priority: event.target.value as ProjectPriority })}
-              >
-                {(['low', 'medium', 'high'] as const).map((priority) => (
-                  <option key={priority} value={priority}>
-                    {t(`projects.priorities.${priority}`)}
-                  </option>
-                ))}
-              </select>
-              <JalaliDatePicker
-                value={form.startDate}
-                onChange={(dateKey) => setForm({ ...form, startDate: dateKey })}
-                ariaLabel={t('projects.startDate')}
-                clearable
-              />
-              <JalaliDatePicker
-                value={form.endDate}
-                onChange={(dateKey) => setForm({ ...form, endDate: dateKey })}
-                ariaLabel={t('projects.endDate')}
-                clearable
-              />
-              <Input
-                value={form.tags}
-                onChange={(event) => setForm({ ...form, tags: event.target.value })}
-                placeholder={t('projects.tags')}
-              />
-              <Input
-                className='md:col-span-2 xl:col-span-2'
-                value={form.repositoryUrl}
-                onChange={(event) => setForm({ ...form, repositoryUrl: event.target.value })}
-                placeholder={t('projects.repository')}
-              />
-              <Textarea
-                className='md:col-span-2 xl:col-span-3'
-                value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder={t('projects.description')}
-              />
-              <div className='flex gap-2 md:col-span-2 xl:col-span-3'>
-                <Button type='submit'>
-                  <FolderGit2 className='me-2 size-4' />
-                  {form.id ? t('projects.update') : t('projects.save')}
-                </Button>
-                {form.id ? (
-                  <Button type='button' variant='outline' onClick={() => setForm(emptyForm())}>
-                    <X className='me-2 size-4' />
-                    {t('projects.cancel')}
-                  </Button>
-                ) : null}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className='flex flex-wrap gap-2'>
-          <Button variant={statusFilter === 'all' ? 'secondary' : 'outline'} size='sm' onClick={() => setStatusFilter('all')}>
-            {t('projects.allStatuses')}
-          </Button>
-          {(['planned', 'active', 'paused', 'completed', 'archived'] as const).map((status) => (
-            <Button
-              key={status}
-              variant={statusFilter === status ? 'secondary' : 'outline'}
-              size='sm'
-              onClick={() => setStatusFilter(status)}
-            >
-              {t(`projects.statuses.${status}`)}
-            </Button>
-          ))}
-        </div>
-
-        {loading ? (
-          <p role='status' className='text-sm text-muted-foreground'>{t('projects.loading')}</p>
-        ) : visible.length ? (
-          <div className='grid gap-4 lg:grid-cols-2'>
-            {visible.map(({ project, tasks, notes }) => {
-              const progress = projectProgress(tasks)
-              return (
-                <Card key={project.id}>
-                  <CardHeader>
-                    <div className='flex flex-wrap items-start justify-between gap-2'>
-                      <div>
-                        <CardTitle className='text-lg'>{project.title}</CardTitle>
-                        <CardDescription>
-                          {t(`projects.statuses.${project.status}`)} · {t(`projects.priorities.${project.priority}`)}
-                          {project.startDate ? ` · ${t('projects.startDate')}: ${formatJalaliDateKey(project.startDate)}` : ''}
-                          {project.endDate ? ` · ${t('projects.endDate')}: ${formatJalaliDateKey(project.endDate)}` : ''}
-                        </CardDescription>
-                      </div>
-                      <div className='flex gap-1'>
-                        <Button size='icon' variant='ghost' aria-label={t('projects.edit')} onClick={() => edit(project)}>
-                          <Pencil className='size-4' />
-                        </Button>
-                        <Button size='icon' variant='ghost' aria-label={t('projects.delete')} onClick={() => void remove(project)}>
-                          <Trash2 className='size-4' />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='space-y-3'>
-                    {project.description ? <p className='text-sm text-muted-foreground'>{project.description}</p> : null}
-                    {project.tags.length ? (
-                      <div className='flex flex-wrap gap-1'>
-                        {project.tags.map((tag) => (
-                          <Badge key={tag} variant='outline'>{tag}</Badge>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <Badge variant='secondary'>{t('projects.progress')}: {progress.percent}%</Badge>
-                      <Badge variant='outline'>
-                        {t('projects.tasksDone')}: {progress.done} / {progress.total}
-                      </Badge>
-                      <Badge variant='outline'>{t('projects.tasksRemaining')}: {progress.remaining}</Badge>
-                    </div>
-                    <div className='space-y-1 text-sm'>
-                      <p className='font-medium'>{t('projects.linkedTasks')}</p>
-                      {tasks.length ? (
-                        tasks.map((task) => (
-                          <div key={task.id} className='flex items-center justify-between gap-2 border-b py-1 text-xs'>
-                            <span>{task.title}</span>
-                            <Badge variant={task.status === 'completed' ? 'secondary' : 'outline'}>
-                              {t(`tasks.status.${task.status}`)}
-                            </Badge>
-                          </div>
-                        ))
-                      ) : (
-                        <p className='text-muted-foreground'>{t('projects.noLinkedTasks')}</p>
-                      )}
-                    </div>
-                    <div className='space-y-2'>
-                      <p className='text-sm font-medium'>{t('projects.notes')}</p>
-                      {notes.length ? (
-                        notes.map((note) => (
-                          <div key={note.id} className='flex items-start justify-between gap-2 rounded-md border p-2 text-sm'>
-                            <span>{note.text}</span>
-                            <Button size='icon' variant='ghost' aria-label={t('projects.deleteNote')} onClick={() => void removeNote(note)}>
-                              <Trash2 className='size-4' />
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className='text-xs text-muted-foreground'>{t('projects.noNotes')}</p>
-                      )}
-                      <div className='flex gap-2'>
-                        <Input
-                          value={noteText[project.id] ?? ''}
-                          onChange={(event) => setNoteText((all) => ({ ...all, [project.id]: event.target.value }))}
-                          placeholder={t('projects.notePlaceholder')}
-                        />
-                        <Button variant='outline' onClick={() => void addNote(project.id)}>
-                          {t('projects.addNote')}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        ) : (
-          <p className='text-sm text-muted-foreground'>{t('projects.empty')}</p>
-        )}
+        <Tabs defaultValue='projects' className='flex flex-col gap-4'>
+          <TabsList className='w-full justify-start sm:w-auto'>
+            <TabsTrigger value='projects'>
+              {t('projectsPage.tabs.projects')}
+            </TabsTrigger>
+            <TabsTrigger value='tasks'>
+              {t('projectsPage.tabs.tasks')}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value='projects'>
+            <ProjectsPanel />
+          </TabsContent>
+          <TabsContent value='tasks'>
+            <WorkTasksPanel embedded />
+          </TabsContent>
+        </Tabs>
       </Main>
     </>
   )

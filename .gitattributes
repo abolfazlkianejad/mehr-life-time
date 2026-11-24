@@ -1,0 +1,3 @@
+# Keep text files LF in every working tree so Prettier's endOfLine: "lf"
+# setting is reproducible on Windows and in Linux CI. Git already stores LF.
+* text=auto eol=lf

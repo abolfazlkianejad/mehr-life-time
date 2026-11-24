@@ -1,5 +1,5 @@
-import type { CardioLog } from '@/services/nutrition'
 import type { MealLog } from '@/services/db'
+import type { CardioLog } from '@/services/nutrition'
 
 /**
  * Nutrition calculations.
@@ -28,7 +28,9 @@ export interface NutritionSummary {
 }
 
 /** A meal counts as confirmed unless the user explicitly marked it as an estimate. */
-export function isConfirmedMeal(meal: Pick<MealLog, 'caloriesConfirmed'>): boolean {
+export function isConfirmedMeal(
+  meal: Pick<MealLog, 'caloriesConfirmed'>
+): boolean {
   return meal.caloriesConfirmed !== false
 }
 
@@ -44,7 +46,10 @@ export function summarizeNutrition(
 ): NutritionSummary {
   const confirmed = meals.filter(isConfirmedMeal)
   const intake = confirmed.reduce((sum, meal) => sum + (meal.calories ?? 0), 0)
-  const burned = cardio.reduce((sum, session) => sum + (session.calories ?? 0), 0)
+  const burned = cardio.reduce(
+    (sum, session) => sum + (session.calories ?? 0),
+    0
+  )
   const protein = confirmed.reduce((sum, meal) => sum + (meal.protein ?? 0), 0)
   const carbs = confirmed.reduce((sum, meal) => sum + (meal.carbs ?? 0), 0)
   const fat = confirmed.reduce((sum, meal) => sum + (meal.fat ?? 0), 0)
@@ -68,7 +73,11 @@ const MET_TABLE: Array<{ keys: string[]; met: number; label: string }> = [
   { keys: ['شنا', 'swim'], met: 8, label: 'شنا' },
   { keys: ['طناب', 'rope'], met: 11, label: 'طناب زدن' },
   { keys: ['هاییت', 'hiit'], met: 8.5, label: 'های‌ایتی' },
-  { keys: ['وزنه', 'strength', 'بدنسازی', 'powerlifting'], met: 5, label: 'تمرین وزنه' },
+  {
+    keys: ['وزنه', 'strength', 'بدنسازی', 'powerlifting'],
+    met: 5,
+    label: 'تمرین وزنه',
+  },
   { keys: ['فوتبال', 'football', 'soccer'], met: 7, label: 'فوتبال' },
   { keys: ['بسکتبال', 'basketball'], met: 6.5, label: 'بسکتبال' },
   { keys: ['یوگا', 'yoga'], met: 3, label: 'یوگا' },
@@ -108,7 +117,7 @@ export function estimateBurnedCalories(
 ): number {
   const safeWeight = weightKg > 0 ? weightKg : 70
   const met = metValueOf(activity)
-  return Math.round((met * 3.5 * safeWeight) / 200 * minutes)
+  return Math.round(((met * 3.5 * safeWeight) / 200) * minutes)
 }
 
 /** A food with a typical Iranian portion, used by the local fallback estimate. */
@@ -125,26 +134,186 @@ interface FoodEntry {
 }
 
 const FOOD_TABLE: FoodEntry[] = [
-  { keys: ['نان', 'bread'], label: 'نان', calories: 80, protein: 3, carbs: 15, fat: 1, serving: 1 },
-  { keys: ['برنج', 'rice'], label: 'برنج', calories: 260, protein: 5, carbs: 55, fat: 3, serving: 1 },
-  { keys: ['تخم مرغ', 'تخم‌مرغ', 'egg'], label: 'تخم‌مرغ', calories: 75, protein: 6, carbs: 0, fat: 5, serving: 1 },
-  { keys: ['مرغ', 'chicken'], label: 'مرغ', calories: 250, protein: 46, carbs: 0, fat: 5, serving: 1 },
-  { keys: ['گوشت', 'beef', 'steak'], label: 'گوشت', calories: 375, protein: 40, carbs: 0, fat: 24, serving: 1 },
-  { keys: ['ماهی', 'fish'], label: 'ماهی', calories: 220, protein: 40, carbs: 0, fat: 6, serving: 1 },
-  { keys: ['ماست', 'yogurt'], label: 'ماست', calories: 100, protein: 8, carbs: 12, fat: 3, serving: 1 },
-  { keys: ['شیر', 'milk'], label: 'شیر', calories: 150, protein: 8, carbs: 12, fat: 8, serving: 1 },
-  { keys: ['پنیر', 'cheese'], label: 'پنیر', calories: 85, protein: 6, carbs: 2, fat: 6, serving: 1 },
-  { keys: ['سیب', 'apple'], label: 'سیب', calories: 80, protein: 0, carbs: 21, fat: 0, serving: 1 },
-  { keys: ['موز', 'banana'], label: 'موز', calories: 105, protein: 1, carbs: 27, fat: 0, serving: 1 },
-  { keys: ['سالاد', 'salad'], label: 'سالاد', calories: 40, protein: 1, carbs: 7, fat: 1, serving: 1 },
-  { keys: ['ماکارونی', 'pasta'], label: 'ماکارونی', calories: 320, protein: 11, carbs: 62, fat: 4, serving: 1 },
-  { keys: ['پیتزا', 'pizza'], label: 'پیتزا', calories: 400, protein: 16, carbs: 44, fat: 16, serving: 1 },
-  { keys: ['برگر', 'burger'], label: 'برگر', calories: 500, protein: 25, carbs: 45, fat: 26, serving: 1 },
-  { keys: ['خرما', 'khorma'], label: 'خورش', calories: 320, protein: 18, carbs: 32, fat: 13, serving: 1 },
-  { keys: ['عدس', 'لوبیا', 'حبوبات', 'lentil'], label: 'حبوبات', calories: 230, protein: 13, carbs: 38, fat: 1, serving: 1 },
-  { keys: ['چای', 'tea', 'قهوه', 'coffee'], label: 'نوشیدنی', calories: 5, protein: 0, carbs: 1, fat: 0, serving: 1 },
-  { keys: ['بیسکویت', 'biscuit', 'cookie', 'کیک', 'cake', 'شکلات', 'chocolate'], label: 'شیرینی', calories: 180, protein: 2, carbs: 26, fat: 7, serving: 1 },
-  { keys: ['آب', 'water'], label: 'آب', calories: 0, protein: 0, carbs: 0, fat: 0, serving: 1 },
+  {
+    keys: ['نان', 'bread'],
+    label: 'نان',
+    calories: 80,
+    protein: 3,
+    carbs: 15,
+    fat: 1,
+    serving: 1,
+  },
+  {
+    keys: ['برنج', 'rice'],
+    label: 'برنج',
+    calories: 260,
+    protein: 5,
+    carbs: 55,
+    fat: 3,
+    serving: 1,
+  },
+  {
+    keys: ['تخم مرغ', 'تخم‌مرغ', 'egg'],
+    label: 'تخم‌مرغ',
+    calories: 75,
+    protein: 6,
+    carbs: 0,
+    fat: 5,
+    serving: 1,
+  },
+  {
+    keys: ['مرغ', 'chicken'],
+    label: 'مرغ',
+    calories: 250,
+    protein: 46,
+    carbs: 0,
+    fat: 5,
+    serving: 1,
+  },
+  {
+    keys: ['گوشت', 'beef', 'steak'],
+    label: 'گوشت',
+    calories: 375,
+    protein: 40,
+    carbs: 0,
+    fat: 24,
+    serving: 1,
+  },
+  {
+    keys: ['ماهی', 'fish'],
+    label: 'ماهی',
+    calories: 220,
+    protein: 40,
+    carbs: 0,
+    fat: 6,
+    serving: 1,
+  },
+  {
+    keys: ['ماست', 'yogurt'],
+    label: 'ماست',
+    calories: 100,
+    protein: 8,
+    carbs: 12,
+    fat: 3,
+    serving: 1,
+  },
+  {
+    keys: ['شیر', 'milk'],
+    label: 'شیر',
+    calories: 150,
+    protein: 8,
+    carbs: 12,
+    fat: 8,
+    serving: 1,
+  },
+  {
+    keys: ['پنیر', 'cheese'],
+    label: 'پنیر',
+    calories: 85,
+    protein: 6,
+    carbs: 2,
+    fat: 6,
+    serving: 1,
+  },
+  {
+    keys: ['سیب', 'apple'],
+    label: 'سیب',
+    calories: 80,
+    protein: 0,
+    carbs: 21,
+    fat: 0,
+    serving: 1,
+  },
+  {
+    keys: ['موز', 'banana'],
+    label: 'موز',
+    calories: 105,
+    protein: 1,
+    carbs: 27,
+    fat: 0,
+    serving: 1,
+  },
+  {
+    keys: ['سالاد', 'salad'],
+    label: 'سالاد',
+    calories: 40,
+    protein: 1,
+    carbs: 7,
+    fat: 1,
+    serving: 1,
+  },
+  {
+    keys: ['ماکارونی', 'pasta'],
+    label: 'ماکارونی',
+    calories: 320,
+    protein: 11,
+    carbs: 62,
+    fat: 4,
+    serving: 1,
+  },
+  {
+    keys: ['پیتزا', 'pizza'],
+    label: 'پیتزا',
+    calories: 400,
+    protein: 16,
+    carbs: 44,
+    fat: 16,
+    serving: 1,
+  },
+  {
+    keys: ['برگر', 'burger'],
+    label: 'برگر',
+    calories: 500,
+    protein: 25,
+    carbs: 45,
+    fat: 26,
+    serving: 1,
+  },
+  {
+    keys: ['خرما', 'khorma'],
+    label: 'خورش',
+    calories: 320,
+    protein: 18,
+    carbs: 32,
+    fat: 13,
+    serving: 1,
+  },
+  {
+    keys: ['عدس', 'لوبیا', 'حبوبات', 'lentil'],
+    label: 'حبوبات',
+    calories: 230,
+    protein: 13,
+    carbs: 38,
+    fat: 1,
+    serving: 1,
+  },
+  {
+    keys: ['چای', 'tea', 'قهوه', 'coffee'],
+    label: 'نوشیدنی',
+    calories: 5,
+    protein: 0,
+    carbs: 1,
+    fat: 0,
+    serving: 1,
+  },
+  {
+    keys: ['بیسکویت', 'biscuit', 'cookie', 'کیک', 'cake', 'شکلات', 'chocolate'],
+    label: 'شیرینی',
+    calories: 180,
+    protein: 2,
+    carbs: 26,
+    fat: 7,
+    serving: 1,
+  },
+  {
+    keys: ['آب', 'water'],
+    label: 'آب',
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    serving: 1,
+  },
 ]
 
 /** Parses a quantity description into a multiplier (for example "۲ کف دست" → 2). */

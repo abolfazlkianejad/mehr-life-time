@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { getRouteApi } from '@tanstack/react-router'
 import {
   BookOpen,
@@ -14,18 +20,7 @@ import {
   Timer,
   TrendingUp,
 } from 'lucide-react'
-import { Header } from '@/components/layout/header'
-import { HeaderActions } from '@/components/header-actions'
-import { Main } from '@/components/layout/main'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTranslation } from 'react-i18next'
 import {
   educationElapsedSeconds,
   finishEducationTaskTimer,
@@ -35,11 +30,25 @@ import {
   type EducationReport,
   type EducationTask,
 } from '@/services/education'
+import { findGoal, getGoals, type GoalRecord } from '@/services/goals'
 import { getEducationItems, type EducationItem } from '@/services/learning'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { HeaderActions } from '@/components/header-actions'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
 import { CoursePanel } from './course-panel'
-import { ReportsPanel } from './reports-panel'
-import { TaskPanel } from './task-panel'
 import { formatStudyDuration, summarizeEducation } from './education-utils'
+import { ReportsPanel } from './reports-panel'
+import { StudyGoalProgress } from './study-goal-progress'
+import { TaskPanel } from './task-panel'
 
 const EDUCATION_SYNC_CHANNEL = 'mehr-education-sync'
 
@@ -63,7 +72,9 @@ function SummaryCard({
           {label}
         </CardDescription>
       </CardHeader>
-      <CardContent className='text-xl font-semibold tabular-nums'>{value}</CardContent>
+      <CardContent className='text-xl font-semibold tabular-nums'>
+        {value}
+      </CardContent>
     </Card>
   )
 }
@@ -74,6 +85,7 @@ export function LearningPage() {
   const [items, setItems] = useState<EducationItem[]>([])
   const [tasks, setTasks] = useState<EducationTask[]>([])
   const [reports, setReports] = useState<EducationReport[]>([])
+  const [goals, setGoals] = useState<GoalRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [errorDetail, setErrorDetail] = useState('')
@@ -86,15 +98,18 @@ export function LearningPage() {
 
   const load = useCallback(async () => {
     const requestId = ++loadIdRef.current
-    const [savedItems, savedTasks, savedReports] = await Promise.all([
-      getEducationItems(),
-      getEducationTasks(),
-      getEducationReports(),
-    ])
+    const [savedItems, savedTasks, savedReports, savedGoals] =
+      await Promise.all([
+        getEducationItems(),
+        getEducationTasks(),
+        getEducationReports(),
+        getGoals(),
+      ])
     if (requestId !== loadIdRef.current) return
     setItems(savedItems)
     setTasks(savedTasks)
     setReports(savedReports)
+    setGoals(savedGoals)
   }, [])
 
   const refresh = useCallback(async () => {
@@ -158,6 +173,8 @@ export function LearningPage() {
     () => summarizeEducation(tasks, items, now),
     [tasks, items, now]
   )
+  const dailyStudyTarget = findGoal(goals, 'work_education', 'daily')?.target
+  const weeklyStudyTarget = findGoal(goals, 'work_education', 'weekly')?.target
   const activeTask = summary.activeTask
 
   const actOnActive = async (action: 'pause' | 'finish') => {
@@ -224,13 +241,23 @@ export function LearningPage() {
               <div className='flex flex-wrap items-center gap-2'>
                 <Badge className='font-mono tabular-nums'>
                   <Timer className='me-1 size-3.5' />
-                  {formatStudyDuration(educationElapsedSeconds(activeTask, now))}
+                  {formatStudyDuration(
+                    educationElapsedSeconds(activeTask, now)
+                  )}
                 </Badge>
-                <Button size='sm' variant='outline' onClick={() => void actOnActive('pause')}>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => void actOnActive('pause')}
+                >
                   <Pause className='me-2 size-4' />
                   {t('learning.running.pause')}
                 </Button>
-                <Button size='sm' variant='secondary' onClick={() => void actOnActive('finish')}>
+                <Button
+                  size='sm'
+                  variant='secondary'
+                  onClick={() => void actOnActive('finish')}
+                >
                   <Check className='me-2 size-4' />
                   {t('learning.running.finish')}
                 </Button>
@@ -271,6 +298,13 @@ export function LearningPage() {
             icon={<BookOpen className='size-4' />}
           />
         </div>
+
+        <StudyGoalProgress
+          todaySeconds={summary.studyTodaySeconds}
+          weekSeconds={summary.studyWeekSeconds}
+          dailyTarget={dailyStudyTarget}
+          weeklyTarget={weeklyStudyTarget}
+        />
 
         {loading ? (
           <p role='status' className='text-sm text-muted-foreground'>
@@ -325,7 +359,11 @@ export function LearningPage() {
             </TabsContent>
 
             <TabsContent value='reports' className='mt-4'>
-              <ReportsPanel reports={reports} onChanged={changed} onError={setError} />
+              <ReportsPanel
+                reports={reports}
+                onChanged={changed}
+                onError={setError}
+              />
             </TabsContent>
           </Tabs>
         )}

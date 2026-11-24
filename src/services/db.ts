@@ -31,7 +31,11 @@ import {
   intersectsLunch,
   nextDateKey,
 } from '@/lib/work-schedule'
-import { calculateWorkTime, settleTimelineBlockSeconds, timelineBlockSeconds } from '@/lib/work-time'
+import {
+  calculateWorkTime,
+  settleTimelineBlockSeconds,
+  timelineBlockSeconds,
+} from '@/lib/work-time'
 import {
   awaitTransaction,
   clearStores,
@@ -47,9 +51,10 @@ import {
   putRecords,
   type StoreDefinition,
 } from '@/services/idb'
-import { buildSeedBundle, type SeedBundle } from '@/services/seed'
 import { migrateLegacyMeals } from '@/services/migrations'
+import { buildSeedBundle, type SeedBundle } from '@/services/seed'
 import {
+  STORE_ALARMS,
   STORE_BODY_WEIGHTS,
   STORE_CARDIO_LOGS,
   STORE_DASHBOARD_DAYS,
@@ -60,6 +65,7 @@ import {
   STORE_ENERGY_LOGS,
   STORE_FINANCE_ENTRIES,
   STORE_FINANCE_SETTINGS,
+  STORE_GOALS,
   STORE_GYM_EXERCISES,
   STORE_GYM_PLANS,
   STORE_GYM_SESSION_SETS,
@@ -68,6 +74,7 @@ import {
   STORE_MEAL_LOGS,
   STORE_META,
   STORE_NEWS_ITEMS,
+  STORE_PLANNER_AVAILABILITY,
   STORE_PROJECT_NOTES,
   STORE_PROJECTS,
   STORE_RADAR_ITEMS,
@@ -83,12 +90,14 @@ import {
 } from '@/services/stores'
 
 export const DB_NAME = 'mehr-life-os'
-// v12 is additive only: opening a v11 database keeps every existing store and
-// record, then creates the gym plan/session stores. No destructive migration
-// is used and previously recorded workout logs stay untouched.
-export const DB_VERSION = 12
+// v12 added the gym plan/session stores; v13 adds the planner availability
+// store; v14 adds goals and desktop alarms. Every migration is additive only:
+// opening an older database keeps all existing stores and records, then creates
+// the missing stores and indexes.
+export const DB_VERSION = 14
 
 export {
+  STORE_ALARMS,
   STORE_BODY_WEIGHTS,
   STORE_CARDIO_LOGS,
   STORE_DASHBOARD_DAYS,
@@ -99,6 +108,7 @@ export {
   STORE_ENERGY_LOGS,
   STORE_FINANCE_ENTRIES,
   STORE_FINANCE_SETTINGS,
+  STORE_GOALS,
   STORE_GYM_EXERCISES,
   STORE_GYM_PLANS,
   STORE_GYM_SESSION_SETS,
@@ -107,6 +117,7 @@ export {
   STORE_MEAL_LOGS,
   STORE_META,
   STORE_NEWS_ITEMS,
+  STORE_PLANNER_AVAILABILITY,
   STORE_PROJECT_NOTES,
   STORE_PROJECTS,
   STORE_RADAR_ITEMS,
@@ -153,25 +164,83 @@ export const STORE_DEFINITIONS: StoreDefinition[] = [
   },
   { name: STORE_META, keyPath: 'key', indexes: [] },
   { name: STORE_DASHBOARD_DAYS, keyPath: 'dateKey', indexes: [] },
-  { name: STORE_WORKOUT_LOGS, keyPath: 'id', indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }] },
-  { name: STORE_VITALS, keyPath: 'id', indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }] },
+  {
+    name: STORE_WORKOUT_LOGS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }],
+  },
+  {
+    name: STORE_VITALS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }],
+  },
   { name: STORE_BODY_WEIGHTS, keyPath: 'dateKey', indexes: [] },
   { name: STORE_DINNER_LOGS, keyPath: 'dateKey', indexes: [] },
-  { name: STORE_STUDY_LOGS, keyPath: 'id', indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }] },
+  {
+    name: STORE_STUDY_LOGS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }],
+  },
   { name: STORE_RADAR_SAVED, keyPath: 'opportunityId', indexes: [] },
-  { name: STORE_FINANCE_ENTRIES, keyPath: 'id', indexes: [{ name: 'by_month', keyPath: 'monthKey' }, { name: 'by_category', keyPath: 'category' }] },
-  { name: STORE_SOCIAL_DRAFTS, keyPath: 'id', indexes: [{ name: 'by_updated_at', keyPath: 'updatedAt' }] },
+  {
+    name: STORE_FINANCE_ENTRIES,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_month', keyPath: 'monthKey' },
+      { name: 'by_category', keyPath: 'category' },
+    ],
+  },
+  {
+    name: STORE_SOCIAL_DRAFTS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_updated_at', keyPath: 'updatedAt' }],
+  },
   { name: STORE_FINANCE_SETTINGS, keyPath: 'id', indexes: [] },
-  { name: STORE_NEWS_ITEMS, keyPath: 'id', indexes: [{ name: 'by_category', keyPath: 'category' }] },
-  { name: STORE_MEAL_LOGS, keyPath: 'id', indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }] },
+  {
+    name: STORE_NEWS_ITEMS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_category', keyPath: 'category' }],
+  },
+  {
+    name: STORE_MEAL_LOGS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }],
+  },
   { name: STORE_LEGACY_TASKS, keyPath: 'id', indexes: [] },
-  { name: STORE_RADAR_ITEMS, keyPath: 'id', indexes: [{ name: 'by_kind', keyPath: 'kind' }, { name: 'by_url', keyPath: 'url', options: { unique: true } }] },
+  {
+    name: STORE_RADAR_ITEMS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_kind', keyPath: 'kind' },
+      { name: 'by_url', keyPath: 'url', options: { unique: true } },
+    ],
+  },
   { name: STORE_STUDY_TIMERS, keyPath: 'id', indexes: [] },
-  { name: STORE_EDUCATION_ITEMS, keyPath: 'id', indexes: [{ name: 'by_track', keyPath: 'track' }] },
-  { name: STORE_PROJECTS, keyPath: 'id', indexes: [{ name: 'by_status', keyPath: 'status' }] },
-  { name: STORE_PROJECT_NOTES, keyPath: 'id', indexes: [{ name: 'by_project', keyPath: 'projectId' }] },
-  { name: STORE_SOCIAL_ACTIVITIES, keyPath: 'id', indexes: [{ name: 'by_status', keyPath: 'status' }] },
-  { name: STORE_CARDIO_LOGS, keyPath: 'id', indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }] },
+  {
+    name: STORE_EDUCATION_ITEMS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_track', keyPath: 'track' }],
+  },
+  {
+    name: STORE_PROJECTS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_status', keyPath: 'status' }],
+  },
+  {
+    name: STORE_PROJECT_NOTES,
+    keyPath: 'id',
+    indexes: [{ name: 'by_project', keyPath: 'projectId' }],
+  },
+  {
+    name: STORE_SOCIAL_ACTIVITIES,
+    keyPath: 'id',
+    indexes: [{ name: 'by_status', keyPath: 'status' }],
+  },
+  {
+    name: STORE_CARDIO_LOGS,
+    keyPath: 'id',
+    indexes: [{ name: 'by_date_key', keyPath: 'dateKey' }],
+  },
   {
     name: STORE_EDUCATION_TASKS,
     keyPath: 'id',
@@ -217,6 +286,38 @@ export const STORE_DEFINITIONS: StoreDefinition[] = [
       { name: 'by_exercise', keyPath: 'exerciseId' },
     ],
   },
+  // v13 store: busy/free windows declared by the user or the planner agent.
+  // Recurring blocks are keyed by a Saturday-first weekday; one-off blocks by
+  // their local calendar day. The planner service expands both into concrete
+  // intervals when a date range is queried.
+  {
+    name: STORE_PLANNER_AVAILABILITY,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_date_key', keyPath: 'dateKey' },
+      { name: 'by_weekday', keyPath: 'weekday' },
+    ],
+  },
+  // v14: user-defined targets. Actual values are always derived from the real
+  // activity stores, so changing a target never rewrites history.
+  {
+    name: STORE_GOALS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_axis', keyPath: 'axis' },
+      { name: 'by_period', keyPath: 'period' },
+    ],
+  },
+  // v14: absolute-time desktop reminders. `at` is an ISO instant, so timezone
+  // and daylight-saving changes cannot shift a reminder.
+  {
+    name: STORE_ALARMS,
+    keyPath: 'id',
+    indexes: [
+      { name: 'by_at', keyPath: 'at' },
+      { name: 'by_status', keyPath: 'status' },
+    ],
+  },
 ]
 
 export interface LegacyLifeTask {
@@ -240,7 +341,15 @@ export interface OpportunityRecord {
   updatedAt: string
 }
 
-export const NEWS_CATEGORIES = ['ai', 'economy', 'politics', 'sports', 'technology', 'exam', 'macro'] as const
+export const NEWS_CATEGORIES = [
+  'ai',
+  'economy',
+  'politics',
+  'sports',
+  'technology',
+  'exam',
+  'macro',
+] as const
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number]
 export type NewsOrigin = 'local' | 'online'
 export interface NewsItem {
@@ -275,23 +384,38 @@ export interface MealLog {
   /** `ai` marks a value that came from an assistant estimate the user approved. */
   source?: 'manual' | 'ai' | 'local'
 }
-export async function getNewsItems(options: { includeArchived?: boolean } = {}): Promise<NewsItem[]> {
+export async function getNewsItems(
+  options: { includeArchived?: boolean } = {}
+): Promise<NewsItem[]> {
   const db = await getDatabase()
   const rows = await getAllRecords<NewsItem>(db, STORE_NEWS_ITEMS)
   return rows
-    .map((row) => ({ ...row, origin: row.origin === 'online' ? 'online' as const : 'local' as const }))
+    .map((row) => ({
+      ...row,
+      origin:
+        row.origin === 'online' ? ('online' as const) : ('local' as const),
+    }))
     .filter((row) => options.includeArchived || !row.archived)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
-export async function saveNewsItem(input: Omit<NewsItem,'id'|'createdAt'|'updatedAt'|'bookmarked'|'archived'|'origin'> & Partial<Pick<NewsItem,'id'|'bookmarked'|'archived'|'origin'>>): Promise<NewsItem> {
+export async function saveNewsItem(
+  input: Omit<
+    NewsItem,
+    'id' | 'createdAt' | 'updatedAt' | 'bookmarked' | 'archived' | 'origin'
+  > &
+    Partial<Pick<NewsItem, 'id' | 'bookmarked' | 'archived' | 'origin'>>
+): Promise<NewsItem> {
   const url = input.url?.trim() || undefined
   if (url) {
     const parsed = new URL(url)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new RangeError('news url must use http or https')
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      throw new RangeError('news url must use http or https')
   }
-  if (!NEWS_CATEGORIES.includes(input.category)) throw new RangeError('unknown news category')
+  if (!NEWS_CATEGORIES.includes(input.category))
+    throw new RangeError('unknown news category')
   const publishedAt = input.publishedAt?.trim() || undefined
-  if (publishedAt && !/^\d{4}-\d{2}-\d{2}$/.test(publishedAt)) throw new RangeError('publishedAt must be a calendar date')
+  if (publishedAt && !/^\d{4}-\d{2}-\d{2}$/.test(publishedAt))
+    throw new RangeError('publishedAt must be a calendar date')
   const db = await getDatabase()
   const all = await getAllRecords<NewsItem>(db, STORE_NEWS_ITEMS)
   // Online feeds are de-duplicated by URL so refreshing keeps local bookmarks.
@@ -314,13 +438,103 @@ export async function saveNewsItem(input: Omit<NewsItem,'id'|'createdAt'|'update
   await putRecords(db, STORE_NEWS_ITEMS, [row])
   return row
 }
-export async function updateNewsItem(id:string,patch:Partial<Pick<NewsItem,'bookmarked'|'archived'>>):Promise<NewsItem>{const db=await getDatabase();const old=await getRecord<NewsItem>(db,STORE_NEWS_ITEMS,id);if(!old)throw new RangeError(`News item "${id}" does not exist`);const row={...old,...patch,origin:old.origin??'local',updatedAt:new Date().toISOString()};await putRecords(db,STORE_NEWS_ITEMS,[row]);return row}
-export async function deleteNewsItem(id:string):Promise<void>{const db=await getDatabase();await deleteRecords(db,STORE_NEWS_ITEMS,[id])}
-export async function getMealLogs(date:Date|string|number=new Date()):Promise<MealLog[]>{const db=await getDatabase();return getAllFromIndex<MealLog>(db,STORE_MEAL_LOGS,'by_date_key',toDateKey(date))}
-export async function getMealLogsByRange(from:Date|string|number,to:Date|string|number):Promise<MealLog[]>{const range=resolveRange(from,to);if(!range)return [];const db=await getDatabase();return (await getAllFromIndex<MealLog>(db,STORE_MEAL_LOGS,'by_date_key',range)).sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||a.createdAt.localeCompare(b.createdAt))}
-export async function saveMealLog(input:Omit<MealLog,'id'|'dateKey'|'createdAt'> & {date?:Date|string|number}):Promise<MealLog>{if(!input.description.trim())throw new RangeError('meal description is required');if(!Number.isSafeInteger(input.calories)||input.calories<0)throw new RangeError('calories must be a non-negative whole number');const db=await getDatabase();const when=input.date?toDate(input.date):new Date();const row={...input,id:createId('meal'),dateKey:toDateKey(when),createdAt:new Date().toISOString()};await putRecords(db,STORE_MEAL_LOGS,[row]);return row}
-export async function updateMealLog(id:string, patch:Partial<Pick<MealLog,'description'|'calories'|'caloriesConfirmed'|'quantity'|'protein'|'carbs'|'fat'|'source'>>):Promise<MealLog>{const db=await getDatabase();const old=await getRecord<MealLog>(db,STORE_MEAL_LOGS,id);if(!old)throw new RangeError(`Meal log "${id}" does not exist`);const row={...old,...patch};if(row.description!==undefined&&!row.description.trim())throw new RangeError('meal description is required');if(!Number.isSafeInteger(row.calories)||row.calories<0)throw new RangeError('calories must be a non-negative whole number');await putRecords(db,STORE_MEAL_LOGS,[row]);return row}
-export async function deleteMealLog(id:string):Promise<void>{const db=await getDatabase();await deleteRecords(db,STORE_MEAL_LOGS,[id])}
+export async function updateNewsItem(
+  id: string,
+  patch: Partial<Pick<NewsItem, 'bookmarked' | 'archived'>>
+): Promise<NewsItem> {
+  const db = await getDatabase()
+  const old = await getRecord<NewsItem>(db, STORE_NEWS_ITEMS, id)
+  if (!old) throw new RangeError(`News item "${id}" does not exist`)
+  const row = {
+    ...old,
+    ...patch,
+    origin: old.origin ?? 'local',
+    updatedAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_NEWS_ITEMS, [row])
+  return row
+}
+export async function deleteNewsItem(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_NEWS_ITEMS, [id])
+}
+export async function getMealLogs(
+  date: Date | string | number = new Date()
+): Promise<MealLog[]> {
+  const db = await getDatabase()
+  return getAllFromIndex<MealLog>(
+    db,
+    STORE_MEAL_LOGS,
+    'by_date_key',
+    toDateKey(date)
+  )
+}
+export async function getMealLogsByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<MealLog[]> {
+  const range = resolveRange(from, to)
+  if (!range) return []
+  const db = await getDatabase()
+  return (
+    await getAllFromIndex<MealLog>(db, STORE_MEAL_LOGS, 'by_date_key', range)
+  ).sort(
+    (a, b) =>
+      a.dateKey.localeCompare(b.dateKey) ||
+      a.createdAt.localeCompare(b.createdAt)
+  )
+}
+export async function saveMealLog(
+  input: Omit<MealLog, 'id' | 'dateKey' | 'createdAt'> & {
+    date?: Date | string | number
+  }
+): Promise<MealLog> {
+  if (!input.description.trim())
+    throw new RangeError('meal description is required')
+  if (!Number.isSafeInteger(input.calories) || input.calories < 0)
+    throw new RangeError('calories must be a non-negative whole number')
+  const db = await getDatabase()
+  const when = input.date ? toDate(input.date) : new Date()
+  const row = {
+    ...input,
+    id: createId('meal'),
+    dateKey: toDateKey(when),
+    createdAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_MEAL_LOGS, [row])
+  return row
+}
+export async function updateMealLog(
+  id: string,
+  patch: Partial<
+    Pick<
+      MealLog,
+      | 'description'
+      | 'calories'
+      | 'caloriesConfirmed'
+      | 'quantity'
+      | 'protein'
+      | 'carbs'
+      | 'fat'
+      | 'source'
+    >
+  >
+): Promise<MealLog> {
+  const db = await getDatabase()
+  const old = await getRecord<MealLog>(db, STORE_MEAL_LOGS, id)
+  if (!old) throw new RangeError(`Meal log "${id}" does not exist`)
+  const row = { ...old, ...patch }
+  if (row.description !== undefined && !row.description.trim())
+    throw new RangeError('meal description is required')
+  if (!Number.isSafeInteger(row.calories) || row.calories < 0)
+    throw new RangeError('calories must be a non-negative whole number')
+  await putRecords(db, STORE_MEAL_LOGS, [row])
+  return row
+}
+export async function deleteMealLog(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_MEAL_LOGS, [id])
+}
 
 export interface FinanceEntry {
   id: string
@@ -334,29 +548,148 @@ export interface FinanceEntry {
   createdAt: string
   updatedAt: string
 }
-export interface FinanceSettings { id: 'default'; savingsGoalBasisPoints: number }
-export interface SocialDraft { id: string; platform: 'linkedin' | 'x'; achievementId: string; achievementTitle: string; text: string; createdAt: string; updatedAt: string }
+export interface FinanceSettings {
+  id: 'default'
+  savingsGoalBasisPoints: number
+}
+export interface SocialDraft {
+  id: string
+  platform: 'linkedin' | 'x'
+  achievementId: string
+  achievementTitle: string
+  text: string
+  createdAt: string
+  updatedAt: string
+}
 
-function validateFinanceEntry(entry: Omit<FinanceEntry, 'id' | 'monthKey' | 'createdAt' | 'updatedAt'>): void {
-  if (!Number.isSafeInteger(entry.amount) || entry.amount <= 0) throw new RangeError('amount must be a positive whole number of toman')
-  if (!entry.title.trim() || !entry.category.trim()) throw new RangeError('title and category are required')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || new Date(`${entry.date}T00:00:00Z`).toISOString().slice(0, 10) !== entry.date) throw new RangeError('date must use YYYY-MM-DD')
+function validateFinanceEntry(
+  entry: Omit<FinanceEntry, 'id' | 'monthKey' | 'createdAt' | 'updatedAt'>
+): void {
+  if (!Number.isSafeInteger(entry.amount) || entry.amount <= 0)
+    throw new RangeError('amount must be a positive whole number of toman')
+  if (!entry.title.trim() || !entry.category.trim())
+    throw new RangeError('title and category are required')
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
+    new Date(`${entry.date}T00:00:00Z`).toISOString().slice(0, 10) !==
+      entry.date
+  )
+    throw new RangeError('date must use YYYY-MM-DD')
 }
-export async function getFinanceEntries(monthKey: string, category?: string): Promise<FinanceEntry[]> {
-  const db=await getDatabase(); const entries=await getAllFromIndex<FinanceEntry>(db,STORE_FINANCE_ENTRIES,'by_month',monthKey)
-  return entries.filter((entry)=>!category||entry.category===category).sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt))
+export async function getFinanceEntries(
+  monthKey: string,
+  category?: string
+): Promise<FinanceEntry[]> {
+  const db = await getDatabase()
+  const entries = await getAllFromIndex<FinanceEntry>(
+    db,
+    STORE_FINANCE_ENTRIES,
+    'by_month',
+    monthKey
+  )
+  return entries
+    .filter((entry) => !category || entry.category === category)
+    .sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)
+    )
 }
-export async function saveFinanceEntry(input: Omit<FinanceEntry,'id'|'monthKey'|'createdAt'|'updatedAt'> & {id?:string}): Promise<FinanceEntry> {
-  validateFinanceEntry(input); const db=await getDatabase(); const existing=input.id?await getRecord<FinanceEntry>(db,STORE_FINANCE_ENTRIES,input.id):undefined; const now=new Date().toISOString()
-  const record:FinanceEntry={...input,id:existing?.id??input.id??createId('finance'),monthKey:input.date.slice(0,7),createdAt:existing?.createdAt??now,updatedAt:now}
-  await putRecords(db,STORE_FINANCE_ENTRIES,[record]); return record
+/**
+ * Finance records inside a local day-key range. The store index is monthly, so
+ * an exact range read is done over the stored rows (never a parallel copy).
+ */
+export async function getFinanceEntriesByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<FinanceEntry[]> {
+  const start = toDateKey(from)
+  const end = toDateKey(to)
+  if (start > end) return []
+  const db = await getDatabase()
+  return (await getAllRecords<FinanceEntry>(db, STORE_FINANCE_ENTRIES))
+    .filter((entry) => entry.date >= start && entry.date <= end)
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt)
+    )
 }
-export async function deleteFinanceEntry(id:string):Promise<void>{const db=await getDatabase();await deleteRecords(db,STORE_FINANCE_ENTRIES,[id])}
-export async function getFinanceSettings():Promise<FinanceSettings>{const db=await getDatabase();return (await getRecord<FinanceSettings>(db,STORE_FINANCE_SETTINGS,'default'))??{id:'default',savingsGoalBasisPoints:5000}}
-export async function saveFinanceSettings(savingsGoalBasisPoints:number):Promise<FinanceSettings>{if(!Number.isInteger(savingsGoalBasisPoints)||savingsGoalBasisPoints<0||savingsGoalBasisPoints>10000)throw new RangeError('savings goal must be between 0 and 100 percent');const record:FinanceSettings={id:'default',savingsGoalBasisPoints};const db=await getDatabase();await putRecords(db,STORE_FINANCE_SETTINGS,[record]);return record}
-export async function getSocialDrafts():Promise<SocialDraft[]>{const db=await getDatabase();return (await getAllRecords<SocialDraft>(db,STORE_SOCIAL_DRAFTS)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))}
-export async function saveSocialDraft(input:Omit<SocialDraft,'id'|'createdAt'|'updatedAt'> & {id?:string}):Promise<SocialDraft>{if(!input.text.trim())throw new RangeError('draft text must not be empty');const db=await getDatabase();const existing=input.id?await getRecord<SocialDraft>(db,STORE_SOCIAL_DRAFTS,input.id):undefined;const now=new Date().toISOString();const record:SocialDraft={...input,id:existing?.id??input.id??createId('draft'),createdAt:existing?.createdAt??now,updatedAt:now};await putRecords(db,STORE_SOCIAL_DRAFTS,[record]);return record}
-export async function deleteSocialDraft(id:string):Promise<void>{const db=await getDatabase();await deleteRecords(db,STORE_SOCIAL_DRAFTS,[id])}
+export async function saveFinanceEntry(
+  input: Omit<FinanceEntry, 'id' | 'monthKey' | 'createdAt' | 'updatedAt'> & {
+    id?: string
+  }
+): Promise<FinanceEntry> {
+  validateFinanceEntry(input)
+  const db = await getDatabase()
+  const existing = input.id
+    ? await getRecord<FinanceEntry>(db, STORE_FINANCE_ENTRIES, input.id)
+    : undefined
+  const now = new Date().toISOString()
+  const record: FinanceEntry = {
+    ...input,
+    id: existing?.id ?? input.id ?? createId('finance'),
+    monthKey: input.date.slice(0, 7),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  }
+  await putRecords(db, STORE_FINANCE_ENTRIES, [record])
+  return record
+}
+export async function deleteFinanceEntry(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_FINANCE_ENTRIES, [id])
+}
+export async function getFinanceSettings(): Promise<FinanceSettings> {
+  const db = await getDatabase()
+  return (
+    (await getRecord<FinanceSettings>(
+      db,
+      STORE_FINANCE_SETTINGS,
+      'default'
+    )) ?? { id: 'default', savingsGoalBasisPoints: 5000 }
+  )
+}
+export async function saveFinanceSettings(
+  savingsGoalBasisPoints: number
+): Promise<FinanceSettings> {
+  if (
+    !Number.isInteger(savingsGoalBasisPoints) ||
+    savingsGoalBasisPoints < 0 ||
+    savingsGoalBasisPoints > 10000
+  )
+    throw new RangeError('savings goal must be between 0 and 100 percent')
+  const record: FinanceSettings = { id: 'default', savingsGoalBasisPoints }
+  const db = await getDatabase()
+  await putRecords(db, STORE_FINANCE_SETTINGS, [record])
+  return record
+}
+export async function getSocialDrafts(): Promise<SocialDraft[]> {
+  const db = await getDatabase()
+  return (await getAllRecords<SocialDraft>(db, STORE_SOCIAL_DRAFTS)).sort(
+    (a, b) => b.updatedAt.localeCompare(a.updatedAt)
+  )
+}
+export async function saveSocialDraft(
+  input: Omit<SocialDraft, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+): Promise<SocialDraft> {
+  if (!input.text.trim()) throw new RangeError('draft text must not be empty')
+  const db = await getDatabase()
+  const existing = input.id
+    ? await getRecord<SocialDraft>(db, STORE_SOCIAL_DRAFTS, input.id)
+    : undefined
+  const now = new Date().toISOString()
+  const record: SocialDraft = {
+    ...input,
+    id: existing?.id ?? input.id ?? createId('draft'),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  }
+  await putRecords(db, STORE_SOCIAL_DRAFTS, [record])
+  return record
+}
+export async function deleteSocialDraft(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_SOCIAL_DRAFTS, [id])
+}
 
 export interface StudyLog {
   id: string
@@ -376,15 +709,55 @@ export type LearningTrack = (typeof LEARNING_TRACKS)[number]
 export function isLearningTrack(value: unknown): value is LearningTrack {
   return LEARNING_TRACKS.some((track) => track === value)
 }
-export interface SavedOpportunity { opportunityId: string; savedAt: string }
-export async function getStudyLogs(date: Date | string | number = new Date()): Promise<StudyLog[]> { const db=await getDatabase(); return getAllFromIndex<StudyLog>(db,STORE_STUDY_LOGS,'by_date_key',toDateKey(date)) }
-export async function getStudyLogsByRange(from: Date | string | number, to: Date | string | number): Promise<StudyLog[]> { const range=resolveRange(from,to); if(!range)return []; const db=await getDatabase(); return getAllFromIndex<StudyLog>(db,STORE_STUDY_LOGS,'by_date_key',range) }
-export async function saveStudyLog(input: Omit<StudyLog,'id'|'dateKey'|'createdAt'> & { track?: LearningTrack; itemId?: string }): Promise<StudyLog> {
-  if(!Number.isInteger(input.minutes)||input.minutes<1)throw new RangeError('study minutes must be a positive whole number')
-  if (input.track !== undefined && !isLearningTrack(input.track)) throw new RangeError('unknown learning track')
-  const db=await getDatabase(); const record={...input,note:input.note.trim(),id:createId('study'),dateKey:toDateKey(new Date()),createdAt:new Date().toISOString()};await putRecords(db,STORE_STUDY_LOGS,[record]);return record
+export interface SavedOpportunity {
+  opportunityId: string
+  savedAt: string
 }
-export async function deleteStudyLog(id: string): Promise<void> { const db=await getDatabase(); await deleteRecords(db,STORE_STUDY_LOGS,[id]) }
+export async function getStudyLogs(
+  date: Date | string | number = new Date()
+): Promise<StudyLog[]> {
+  const db = await getDatabase()
+  return getAllFromIndex<StudyLog>(
+    db,
+    STORE_STUDY_LOGS,
+    'by_date_key',
+    toDateKey(date)
+  )
+}
+export async function getStudyLogsByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<StudyLog[]> {
+  const range = resolveRange(from, to)
+  if (!range) return []
+  const db = await getDatabase()
+  return getAllFromIndex<StudyLog>(db, STORE_STUDY_LOGS, 'by_date_key', range)
+}
+export async function saveStudyLog(
+  input: Omit<StudyLog, 'id' | 'dateKey' | 'createdAt'> & {
+    track?: LearningTrack
+    itemId?: string
+  }
+): Promise<StudyLog> {
+  if (!Number.isInteger(input.minutes) || input.minutes < 1)
+    throw new RangeError('study minutes must be a positive whole number')
+  if (input.track !== undefined && !isLearningTrack(input.track))
+    throw new RangeError('unknown learning track')
+  const db = await getDatabase()
+  const record = {
+    ...input,
+    note: input.note.trim(),
+    id: createId('study'),
+    dateKey: toDateKey(new Date()),
+    createdAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_STUDY_LOGS, [record])
+  return record
+}
+export async function deleteStudyLog(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_STUDY_LOGS, [id])
+}
 
 export interface StudyTimerRecord {
   id: 'active'
@@ -401,38 +774,137 @@ export interface StudyTimerRecord {
 
 /** Persistent study stopwatch state; survives reloads and browser restarts. */
 export async function getStudyTimer(): Promise<StudyTimerRecord | undefined> {
-  const db=await getDatabase()
-  const record=await getRecord<StudyTimerRecord>(db,STORE_STUDY_TIMERS,'active')
-  if(!record)return undefined
-  return { ...record, accumulatedSeconds: Math.max(0, Math.floor(record.accumulatedSeconds||0)) }
+  const db = await getDatabase()
+  const record = await getRecord<StudyTimerRecord>(
+    db,
+    STORE_STUDY_TIMERS,
+    'active'
+  )
+  if (!record) return undefined
+  return {
+    ...record,
+    accumulatedSeconds: Math.max(0, Math.floor(record.accumulatedSeconds || 0)),
+  }
 }
-export async function saveStudyTimerMeta(patch: Partial<Pick<StudyTimerRecord,'category'|'note'|'track'|'itemId'>>): Promise<StudyTimerRecord> {
-  const current=await getStudyTimer()
-  const record: StudyTimerRecord={ id:'active', category:patch.category??current?.category??'ml', note:patch.note??current?.note??'', accumulatedSeconds:current?.accumulatedSeconds??0, ...(current?.startedAt?{startedAt:current.startedAt}:{}), ...(patch.track!==undefined?{track:patch.track}:current?.track?{track:current.track}:{}), ...(patch.itemId!==undefined?{itemId:patch.itemId}:current?.itemId?{itemId:current.itemId}:{}), updatedAt:new Date().toISOString() }
-  const db=await getDatabase(); await putRecords(db,STORE_STUDY_TIMERS,[record]); return record
+export async function saveStudyTimerMeta(
+  patch: Partial<
+    Pick<StudyTimerRecord, 'category' | 'note' | 'track' | 'itemId'>
+  >
+): Promise<StudyTimerRecord> {
+  const current = await getStudyTimer()
+  const record: StudyTimerRecord = {
+    id: 'active',
+    category: patch.category ?? current?.category ?? 'ml',
+    note: patch.note ?? current?.note ?? '',
+    accumulatedSeconds: current?.accumulatedSeconds ?? 0,
+    ...(current?.startedAt ? { startedAt: current.startedAt } : {}),
+    ...(patch.track !== undefined
+      ? { track: patch.track }
+      : current?.track
+        ? { track: current.track }
+        : {}),
+    ...(patch.itemId !== undefined
+      ? { itemId: patch.itemId }
+      : current?.itemId
+        ? { itemId: current.itemId }
+        : {}),
+    updatedAt: new Date().toISOString(),
+  }
+  const db = await getDatabase()
+  await putRecords(db, STORE_STUDY_TIMERS, [record])
+  return record
 }
-export async function startStudyTimer(category: StudyLog['category']='ml', track?: LearningTrack, itemId?: string): Promise<StudyTimerRecord> {
-  const current=await getStudyTimer()
-  const record: StudyTimerRecord={ id:'active', category, note:current?.note??'', accumulatedSeconds:current?.accumulatedSeconds??0, startedAt:current?.startedAt??new Date().toISOString(), ...(track?{track}:current?.track?{track:current.track}:{}), ...(itemId?{itemId}:current?.itemId?{itemId:current.itemId}:{}), updatedAt:new Date().toISOString() }
-  const db=await getDatabase(); await putRecords(db,STORE_STUDY_TIMERS,[record]); return record
+export async function startStudyTimer(
+  category: StudyLog['category'] = 'ml',
+  track?: LearningTrack,
+  itemId?: string
+): Promise<StudyTimerRecord> {
+  const current = await getStudyTimer()
+  const record: StudyTimerRecord = {
+    id: 'active',
+    category,
+    note: current?.note ?? '',
+    accumulatedSeconds: current?.accumulatedSeconds ?? 0,
+    startedAt: current?.startedAt ?? new Date().toISOString(),
+    ...(track ? { track } : current?.track ? { track: current.track } : {}),
+    ...(itemId
+      ? { itemId }
+      : current?.itemId
+        ? { itemId: current.itemId }
+        : {}),
+    updatedAt: new Date().toISOString(),
+  }
+  const db = await getDatabase()
+  await putRecords(db, STORE_STUDY_TIMERS, [record])
+  return record
 }
 export async function pauseStudyTimer(): Promise<StudyTimerRecord | undefined> {
-  const current=await getStudyTimer()
-  if(!current)return undefined
-  const live=current.startedAt ? Math.max(0,Math.floor((Date.now()-Date.parse(current.startedAt))/1000)) : 0
-  const record: StudyTimerRecord={ ...current, accumulatedSeconds:current.accumulatedSeconds+live, startedAt:undefined, updatedAt:new Date().toISOString() }
-  const db=await getDatabase(); await putRecords(db,STORE_STUDY_TIMERS,[record]); return record
+  const current = await getStudyTimer()
+  if (!current) return undefined
+  const live = current.startedAt
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - Date.parse(current.startedAt)) / 1000)
+      )
+    : 0
+  const record: StudyTimerRecord = {
+    ...current,
+    accumulatedSeconds: current.accumulatedSeconds + live,
+    startedAt: undefined,
+    updatedAt: new Date().toISOString(),
+  }
+  const db = await getDatabase()
+  await putRecords(db, STORE_STUDY_TIMERS, [record])
+  return record
 }
-export async function clearStudyTimer(): Promise<void> { const db=await getDatabase(); await deleteRecords(db,STORE_STUDY_TIMERS,['active']) }
-export async function finishStudyTimer(input: Pick<StudyLog,'note'|'category'> & { track?: LearningTrack; itemId?: string }): Promise<StudyLog | null> {
-  const paused=await pauseStudyTimer()
-  if(!paused || paused.accumulatedSeconds<1){ await clearStudyTimer(); return null }
-  const log=await saveStudyLog({ category:input.category, minutes:Math.max(1,Math.floor(paused.accumulatedSeconds/60)), note:input.note, ...(input.track?{track:input.track}:paused.track?{track:paused.track}:{}), ...(input.itemId?{itemId:input.itemId}:paused.itemId?{itemId:paused.itemId}:{}) })
+export async function clearStudyTimer(): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_STUDY_TIMERS, ['active'])
+}
+export async function finishStudyTimer(
+  input: Pick<StudyLog, 'note' | 'category'> & {
+    track?: LearningTrack
+    itemId?: string
+  }
+): Promise<StudyLog | null> {
+  const paused = await pauseStudyTimer()
+  if (!paused || paused.accumulatedSeconds < 1) {
+    await clearStudyTimer()
+    return null
+  }
+  const log = await saveStudyLog({
+    category: input.category,
+    minutes: Math.max(1, Math.floor(paused.accumulatedSeconds / 60)),
+    note: input.note,
+    ...(input.track
+      ? { track: input.track }
+      : paused.track
+        ? { track: paused.track }
+        : {}),
+    ...(input.itemId
+      ? { itemId: input.itemId }
+      : paused.itemId
+        ? { itemId: paused.itemId }
+        : {}),
+  })
   await clearStudyTimer()
   return log
 }
-export async function getSavedOpportunities(): Promise<SavedOpportunity[]> { const db=await getDatabase(); return getAllRecords<SavedOpportunity>(db,STORE_RADAR_SAVED) }
-export async function setOpportunitySaved(opportunityId:string,saved:boolean):Promise<void> { const db=await getDatabase(); if(saved) await putRecords(db,STORE_RADAR_SAVED,[{opportunityId,savedAt:new Date().toISOString()}]); else await deleteRecords(db,STORE_RADAR_SAVED,[opportunityId]) }
+export async function getSavedOpportunities(): Promise<SavedOpportunity[]> {
+  const db = await getDatabase()
+  return getAllRecords<SavedOpportunity>(db, STORE_RADAR_SAVED)
+}
+export async function setOpportunitySaved(
+  opportunityId: string,
+  saved: boolean
+): Promise<void> {
+  const db = await getDatabase()
+  if (saved)
+    await putRecords(db, STORE_RADAR_SAVED, [
+      { opportunityId, savedAt: new Date().toISOString() },
+    ])
+  else await deleteRecords(db, STORE_RADAR_SAVED, [opportunityId])
+}
 
 export interface RadarProfile {
   /** Skills copied from the user's own resume; used only for local match estimates. */
@@ -444,41 +916,89 @@ export interface RadarProfile {
 const RADAR_PROFILE_KEY = 'radarProfile'
 
 export async function getRadarProfile(): Promise<RadarProfile> {
-  const db=await getDatabase()
-  const record=await getRecord<MetaRecord>(db,STORE_META,RADAR_PROFILE_KEY)
-  if(!record)return { skills: [], headline: '', summary: '' }
+  const db = await getDatabase()
+  const record = await getRecord<MetaRecord>(db, STORE_META, RADAR_PROFILE_KEY)
+  if (!record) return { skills: [], headline: '', summary: '' }
   try {
-    const parsed=JSON.parse(record.value) as Partial<RadarProfile>
-    return { skills:Array.isArray(parsed.skills)?parsed.skills.filter((skill):skill is string=>typeof skill==='string'):[], headline:typeof parsed.headline==='string'?parsed.headline:'', summary:typeof parsed.summary==='string'?parsed.summary:'' }
-  } catch { return { skills: [], headline: '', summary: '' } }
+    const parsed = JSON.parse(record.value) as Partial<RadarProfile>
+    return {
+      skills: Array.isArray(parsed.skills)
+        ? parsed.skills.filter(
+            (skill): skill is string => typeof skill === 'string'
+          )
+        : [],
+      headline: typeof parsed.headline === 'string' ? parsed.headline : '',
+      summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    }
+  } catch {
+    return { skills: [], headline: '', summary: '' }
+  }
 }
 
-export async function saveRadarProfile(input: RadarProfile): Promise<RadarProfile> {
-  const profile: RadarProfile={ skills:[...new Set(input.skills.map((skill)=>skill.trim()).filter(Boolean))], headline:input.headline.trim(), summary:input.summary.trim() }
-  const db=await getDatabase()
-  await putRecords<MetaRecord>(db,STORE_META,[{ key:RADAR_PROFILE_KEY, value:JSON.stringify(profile) }])
+export async function saveRadarProfile(
+  input: RadarProfile
+): Promise<RadarProfile> {
+  const profile: RadarProfile = {
+    skills: [
+      ...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean)),
+    ],
+    headline: input.headline.trim(),
+    summary: input.summary.trim(),
+  }
+  const db = await getDatabase()
+  await putRecords<MetaRecord>(db, STORE_META, [
+    { key: RADAR_PROFILE_KEY, value: JSON.stringify(profile) },
+  ])
   return profile
 }
 
-export async function getOpportunityRecords(kind?: OpportunityRecord['kind']): Promise<OpportunityRecord[]> {
+export async function getOpportunityRecords(
+  kind?: OpportunityRecord['kind']
+): Promise<OpportunityRecord[]> {
   const db = await getDatabase()
-  const rows = kind ? await getAllFromIndex<OpportunityRecord>(db, STORE_RADAR_ITEMS, 'by_kind', kind) : await getAllRecords<OpportunityRecord>(db, STORE_RADAR_ITEMS)
+  const rows = kind
+    ? await getAllFromIndex<OpportunityRecord>(
+        db,
+        STORE_RADAR_ITEMS,
+        'by_kind',
+        kind
+      )
+    : await getAllRecords<OpportunityRecord>(db, STORE_RADAR_ITEMS)
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
-export async function saveOpportunityRecord(input: Omit<OpportunityRecord, 'id' | 'bookmarked' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<OpportunityRecord> {
-  if (!input.title.trim() || !input.platform.trim()) throw new RangeError('opportunity title and source are required')
+export async function saveOpportunityRecord(
+  input: Omit<
+    OpportunityRecord,
+    'id' | 'bookmarked' | 'createdAt' | 'updatedAt'
+  > & { id?: string }
+): Promise<OpportunityRecord> {
+  if (!input.title.trim() || !input.platform.trim())
+    throw new RangeError('opportunity title and source are required')
   let url: URL
-  try { url = new URL(input.url) } catch { throw new RangeError('opportunity URL is invalid') }
-  if (!['http:', 'https:'].includes(url.protocol)) throw new RangeError('opportunity URL must use HTTP or HTTPS')
-  if (input.budgetToman !== undefined && (!Number.isSafeInteger(input.budgetToman) || input.budgetToman <= 0)) throw new RangeError('budget must be a positive whole toman amount')
+  try {
+    url = new URL(input.url)
+  } catch {
+    throw new RangeError('opportunity URL is invalid')
+  }
+  if (!['http:', 'https:'].includes(url.protocol))
+    throw new RangeError('opportunity URL must use HTTP or HTTPS')
+  if (
+    input.budgetToman !== undefined &&
+    (!Number.isSafeInteger(input.budgetToman) || input.budgetToman <= 0)
+  )
+    throw new RangeError('budget must be a positive whole toman amount')
   const db = await getDatabase()
-  const old = input.id ? await getRecord<OpportunityRecord>(db, STORE_RADAR_ITEMS, input.id) : undefined
+  const old = input.id
+    ? await getRecord<OpportunityRecord>(db, STORE_RADAR_ITEMS, input.id)
+    : undefined
   const row: OpportunityRecord = {
     ...input,
     url: url.toString(),
     id: old?.id ?? input.id ?? createId('opportunity'),
-    skills: [...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean))],
+    skills: [
+      ...new Set(input.skills.map((skill) => skill.trim()).filter(Boolean)),
+    ],
     bookmarked: old?.bookmarked ?? false,
     createdAt: old?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -487,7 +1007,10 @@ export async function saveOpportunityRecord(input: Omit<OpportunityRecord, 'id' 
   return row
 }
 
-export async function updateOpportunityRecord(id: string, patch: Partial<Pick<OpportunityRecord, 'bookmarked'>>): Promise<OpportunityRecord> {
+export async function updateOpportunityRecord(
+  id: string,
+  patch: Partial<Pick<OpportunityRecord, 'bookmarked'>>
+): Promise<OpportunityRecord> {
   const db = await getDatabase()
   const old = await getRecord<OpportunityRecord>(db, STORE_RADAR_ITEMS, id)
   if (!old) throw new RangeError(`Opportunity "${id}" does not exist`)
@@ -502,37 +1025,212 @@ export async function deleteOpportunityRecord(id: string): Promise<void> {
   await deleteRecords(db, STORE_RADAR_SAVED, [id])
 }
 
-export interface WorkoutSet { id: string; dateKey: string; exercise: string; set: number; weightKg: number; reps: number; rir: number; createdAt: string }
-export interface VitalRecord { id: string; dateKey: string; period: 'morning' | 'evening'; systolic: number; diastolic: number; pulse: number; measuredAt: string }
-export interface BodyWeightRecord { dateKey: string; weightKg: number; updatedAt: string }
-export interface DinnerRecord { dateKey: string; description: string; calories: number; caloriesConfirmed?: boolean; updatedAt: string }
-
-export async function getWorkoutLogs(date: Date | string | number = new Date()): Promise<WorkoutSet[]> { const db = await getDatabase(); return getAllFromIndex<WorkoutSet>(db, STORE_WORKOUT_LOGS, 'by_date_key', toDateKey(date)) }
-export async function getWorkoutLogsByRange(from: Date | string | number, to: Date | string | number): Promise<WorkoutSet[]> { const range=resolveRange(from,to); if(!range)return []; const db=await getDatabase(); return (await getAllFromIndex<WorkoutSet>(db,STORE_WORKOUT_LOGS,'by_date_key',range)).sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||a.exercise.localeCompare(b.exercise)||a.set-b.set) }
-export async function saveWorkoutSet(input: Omit<WorkoutSet, 'id' | 'dateKey' | 'createdAt'> & { date?: Date | string | number }): Promise<WorkoutSet> {
-  if(!input.exercise.trim())throw new RangeError('exercise is required')
-  if(!Number.isInteger(input.set)||input.set<1)throw new RangeError('set must be a positive whole number')
-  if(!Number.isFinite(input.weightKg)||input.weightKg<0)throw new RangeError('weight must be non-negative')
-  if(!Number.isInteger(input.reps)||input.reps<1)throw new RangeError('reps must be a positive whole number')
-  if(!Number.isInteger(input.rir)||input.rir<0||input.rir>10)throw new RangeError('RIR must be between 0 and 10')
-  const db = await getDatabase(); const record = { ...input, exercise:input.exercise.trim(), id: createId('set'), dateKey: toDateKey(input.date ?? new Date()), createdAt: new Date().toISOString() }; await putRecords(db, STORE_WORKOUT_LOGS, [record]); return record
+export interface WorkoutSet {
+  id: string
+  dateKey: string
+  exercise: string
+  set: number
+  weightKg: number
+  reps: number
+  rir: number
+  createdAt: string
 }
-export async function deleteWorkoutSet(id: string): Promise<void> { const db = await getDatabase(); await deleteRecords(db, STORE_WORKOUT_LOGS, [id]) }
-export async function getVitals(date: Date | string | number = new Date()): Promise<VitalRecord[]> { const db = await getDatabase(); return getAllFromIndex<VitalRecord>(db, STORE_VITALS, 'by_date_key', toDateKey(date)) }
-export async function getVitalsByRange(from: Date | string | number, to: Date | string | number): Promise<VitalRecord[]> { const range=resolveRange(from,to); if(!range)return []; const db=await getDatabase(); return (await getAllFromIndex<VitalRecord>(db,STORE_VITALS,'by_date_key',range)).sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||a.measuredAt.localeCompare(b.measuredAt)) }
-export async function saveVital(input: Omit<VitalRecord, 'id' | 'dateKey' | 'measuredAt'>): Promise<VitalRecord> {
-  if (!Number.isInteger(input.systolic) || !Number.isInteger(input.diastolic) || input.systolic < 50 || input.systolic > 300 || input.diastolic < 30 || input.diastolic > 200 || !Number.isInteger(input.pulse) || input.pulse < 0 || input.pulse > 250) throw new RangeError('blood pressure or pulse value is outside the accepted range')
+export interface VitalRecord {
+  id: string
+  dateKey: string
+  period: 'morning' | 'evening'
+  systolic: number
+  diastolic: number
+  pulse: number
+  measuredAt: string
+}
+export interface BodyWeightRecord {
+  dateKey: string
+  weightKg: number
+  updatedAt: string
+}
+export interface DinnerRecord {
+  dateKey: string
+  description: string
+  calories: number
+  caloriesConfirmed?: boolean
+  updatedAt: string
+}
+
+export async function getWorkoutLogs(
+  date: Date | string | number = new Date()
+): Promise<WorkoutSet[]> {
+  const db = await getDatabase()
+  return getAllFromIndex<WorkoutSet>(
+    db,
+    STORE_WORKOUT_LOGS,
+    'by_date_key',
+    toDateKey(date)
+  )
+}
+export async function getWorkoutLogsByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<WorkoutSet[]> {
+  const range = resolveRange(from, to)
+  if (!range) return []
+  const db = await getDatabase()
+  return (
+    await getAllFromIndex<WorkoutSet>(
+      db,
+      STORE_WORKOUT_LOGS,
+      'by_date_key',
+      range
+    )
+  ).sort(
+    (a, b) =>
+      a.dateKey.localeCompare(b.dateKey) ||
+      a.exercise.localeCompare(b.exercise) ||
+      a.set - b.set
+  )
+}
+export async function saveWorkoutSet(
+  input: Omit<WorkoutSet, 'id' | 'dateKey' | 'createdAt'> & {
+    date?: Date | string | number
+  }
+): Promise<WorkoutSet> {
+  if (!input.exercise.trim()) throw new RangeError('exercise is required')
+  if (!Number.isInteger(input.set) || input.set < 1)
+    throw new RangeError('set must be a positive whole number')
+  if (!Number.isFinite(input.weightKg) || input.weightKg < 0)
+    throw new RangeError('weight must be non-negative')
+  if (!Number.isInteger(input.reps) || input.reps < 1)
+    throw new RangeError('reps must be a positive whole number')
+  if (!Number.isInteger(input.rir) || input.rir < 0 || input.rir > 10)
+    throw new RangeError('RIR must be between 0 and 10')
+  const db = await getDatabase()
+  const record = {
+    ...input,
+    exercise: input.exercise.trim(),
+    id: createId('set'),
+    dateKey: toDateKey(input.date ?? new Date()),
+    createdAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_WORKOUT_LOGS, [record])
+  return record
+}
+export async function deleteWorkoutSet(id: string): Promise<void> {
+  const db = await getDatabase()
+  await deleteRecords(db, STORE_WORKOUT_LOGS, [id])
+}
+export async function getVitals(
+  date: Date | string | number = new Date()
+): Promise<VitalRecord[]> {
+  const db = await getDatabase()
+  return getAllFromIndex<VitalRecord>(
+    db,
+    STORE_VITALS,
+    'by_date_key',
+    toDateKey(date)
+  )
+}
+export async function getVitalsByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<VitalRecord[]> {
+  const range = resolveRange(from, to)
+  if (!range) return []
+  const db = await getDatabase()
+  return (
+    await getAllFromIndex<VitalRecord>(db, STORE_VITALS, 'by_date_key', range)
+  ).sort(
+    (a, b) =>
+      a.dateKey.localeCompare(b.dateKey) ||
+      a.measuredAt.localeCompare(b.measuredAt)
+  )
+}
+export async function saveVital(
+  input: Omit<VitalRecord, 'id' | 'dateKey' | 'measuredAt'>
+): Promise<VitalRecord> {
+  if (
+    !Number.isInteger(input.systolic) ||
+    !Number.isInteger(input.diastolic) ||
+    input.systolic < 50 ||
+    input.systolic > 300 ||
+    input.diastolic < 30 ||
+    input.diastolic > 200 ||
+    !Number.isInteger(input.pulse) ||
+    input.pulse < 0 ||
+    input.pulse > 250
+  )
+    throw new RangeError(
+      'blood pressure or pulse value is outside the accepted range'
+    )
   const db = await getDatabase()
   const now = new Date()
-  const record = { ...input, id: createId('vital'), dateKey: toDateKey(now), measuredAt: now.toISOString() }
+  const record = {
+    ...input,
+    id: createId('vital'),
+    dateKey: toDateKey(now),
+    measuredAt: now.toISOString(),
+  }
   await putRecords(db, STORE_VITALS, [record])
   return record
 }
-export async function getBodyWeight(date: Date | string | number = new Date()): Promise<BodyWeightRecord | undefined> { const db = await getDatabase(); return getRecord<BodyWeightRecord>(db, STORE_BODY_WEIGHTS, toDateKey(date)) }
-export async function getBodyWeightsByRange(from: Date | string | number, to: Date | string | number): Promise<BodyWeightRecord[]> { const range=resolveRange(from,to); if(!range)return []; const db=await getDatabase(); return (await getAllRecords<BodyWeightRecord>(db,STORE_BODY_WEIGHTS)).filter((row)=>row.dateKey>=toDateKey(from)&&row.dateKey<=toDateKey(to)).sort((a,b)=>a.dateKey.localeCompare(b.dateKey)) }
-export async function saveBodyWeight(weightKg: number): Promise<BodyWeightRecord> { if(!Number.isFinite(weightKg)||weightKg<20||weightKg>400)throw new RangeError('weight is outside the accepted range'); const db = await getDatabase(); const record = { dateKey: toDateKey(new Date()), weightKg, updatedAt: new Date().toISOString() }; await putRecords(db, STORE_BODY_WEIGHTS, [record]); return record }
-export async function getDinner(date: Date | string | number = new Date()): Promise<DinnerRecord | undefined> { const db = await getDatabase(); return getRecord<DinnerRecord>(db, STORE_DINNER_LOGS, toDateKey(date)) }
-export async function saveDinner(description: string, calories: number, caloriesConfirmed = false): Promise<DinnerRecord> { if(!description.trim())throw new RangeError('dinner description is required');if(!Number.isSafeInteger(calories)||calories<0)throw new RangeError('calories must be a non-negative whole number');const db = await getDatabase(); const record = { dateKey: toDateKey(new Date()), description: description.trim(), calories, caloriesConfirmed, updatedAt: new Date().toISOString() }; await putRecords(db, STORE_DINNER_LOGS, [record]); return record }
+export async function getBodyWeight(
+  date: Date | string | number = new Date()
+): Promise<BodyWeightRecord | undefined> {
+  const db = await getDatabase()
+  return getRecord<BodyWeightRecord>(db, STORE_BODY_WEIGHTS, toDateKey(date))
+}
+export async function getBodyWeightsByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<BodyWeightRecord[]> {
+  const range = resolveRange(from, to)
+  if (!range) return []
+  const db = await getDatabase()
+  return (await getAllRecords<BodyWeightRecord>(db, STORE_BODY_WEIGHTS))
+    .filter(
+      (row) => row.dateKey >= toDateKey(from) && row.dateKey <= toDateKey(to)
+    )
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+}
+export async function saveBodyWeight(
+  weightKg: number
+): Promise<BodyWeightRecord> {
+  if (!Number.isFinite(weightKg) || weightKg < 20 || weightKg > 400)
+    throw new RangeError('weight is outside the accepted range')
+  const db = await getDatabase()
+  const record = {
+    dateKey: toDateKey(new Date()),
+    weightKg,
+    updatedAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_BODY_WEIGHTS, [record])
+  return record
+}
+export async function getDinner(
+  date: Date | string | number = new Date()
+): Promise<DinnerRecord | undefined> {
+  const db = await getDatabase()
+  return getRecord<DinnerRecord>(db, STORE_DINNER_LOGS, toDateKey(date))
+}
+export async function saveDinner(
+  description: string,
+  calories: number,
+  caloriesConfirmed = false
+): Promise<DinnerRecord> {
+  if (!description.trim())
+    throw new RangeError('dinner description is required')
+  if (!Number.isSafeInteger(calories) || calories < 0)
+    throw new RangeError('calories must be a non-negative whole number')
+  const db = await getDatabase()
+  const record = {
+    dateKey: toDateKey(new Date()),
+    description: description.trim(),
+    calories,
+    caloriesConfirmed,
+    updatedAt: new Date().toISOString(),
+  }
+  await putRecords(db, STORE_DINNER_LOGS, [record])
+  return record
+}
 
 export interface DashboardDayRecord {
   dateKey: string
@@ -552,12 +1250,36 @@ export interface DashboardDayRecord {
   updatedAt: string
 }
 
-export async function getDashboardDay(date: Date | string | number = new Date()): Promise<DashboardDayRecord | undefined> {
+export async function getDashboardDay(
+  date: Date | string | number = new Date()
+): Promise<DashboardDayRecord | undefined> {
   const database = await getDatabase()
-  return getRecord<DashboardDayRecord>(database, STORE_DASHBOARD_DAYS, toDateKey(date))
+  return getRecord<DashboardDayRecord>(
+    database,
+    STORE_DASHBOARD_DAYS,
+    toDateKey(date)
+  )
 }
 
-export async function saveDashboardDay(record: DashboardDayRecord): Promise<DashboardDayRecord> {
+/** Daily routine/sleep records inside a local day-key range. */
+export async function getDashboardDaysByRange(
+  from: Date | string | number,
+  to: Date | string | number
+): Promise<DashboardDayRecord[]> {
+  const start = toDateKey(from)
+  const end = toDateKey(to)
+  if (start > end) return []
+  const database = await getDatabase()
+  return (
+    await getAllRecords<DashboardDayRecord>(database, STORE_DASHBOARD_DAYS)
+  )
+    .filter((row) => row.dateKey >= start && row.dateKey <= end)
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+}
+
+export async function saveDashboardDay(
+  record: DashboardDayRecord
+): Promise<DashboardDayRecord> {
   const database = await getDatabase()
   const saved = { ...record, updatedAt: new Date().toISOString() }
   await putRecords(database, STORE_DASHBOARD_DAYS, [saved])
@@ -565,16 +1287,29 @@ export async function saveDashboardDay(record: DashboardDayRecord): Promise<Dash
 }
 
 /** Writes only the quick note inside one transaction so stale UI state can never overwrite the day's routine fields. */
-export async function saveDashboardNote(date: Date | string | number, note: string): Promise<DashboardDayRecord> {
+export async function saveDashboardNote(
+  date: Date | string | number,
+  note: string
+): Promise<DashboardDayRecord> {
   const dateKey = toDateKey(date)
   const database = await getDatabase()
   const tx = database.transaction(STORE_DASHBOARD_DAYS, 'readwrite')
   const complete = awaitTransaction(tx)
   try {
     const store = tx.objectStore(STORE_DASHBOARD_DAYS)
-    const existing = await promisifyRequest<DashboardDayRecord | undefined>(store.get(dateKey))
+    const existing = await promisifyRequest<DashboardDayRecord | undefined>(
+      store.get(dateKey)
+    )
     const saved: DashboardDayRecord = {
-      ...(existing ?? { dateKey, wakeTime: '', breakfast: '', bagItems: [], commuteTime: '', note: '', updatedAt: '' }),
+      ...(existing ?? {
+        dateKey,
+        wakeTime: '',
+        breakfast: '',
+        bagItems: [],
+        commuteTime: '',
+        note: '',
+        updatedAt: '',
+      }),
       dateKey,
       note,
       updatedAt: new Date().toISOString(),
@@ -583,7 +1318,11 @@ export async function saveDashboardNote(date: Date | string | number, note: stri
     await complete
     return saved
   } catch (error) {
-    try { tx.abort() } catch { /* transaction already closed */ }
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
     await complete.catch(() => undefined)
     throw error
   }
@@ -622,18 +1361,16 @@ let initializationPromise: Promise<void> | null = null
 /** Lazily opens (and upgrades) the shared IndexedDB connection. */
 export function getDatabase(): Promise<IDBDatabase> {
   if (!databasePromise) {
-    databasePromise = openDatabase(
-      DB_NAME,
-      DB_VERSION,
-      STORE_DEFINITIONS
-    ).then(async (database) => {
-      await migrateLegacyLifeTasks(database)
-      await migrateLegacyMeals(database)
-      return database
-    }).catch((error: unknown) => {
-      databasePromise = null
-      throw error
-    })
+    databasePromise = openDatabase(DB_NAME, DB_VERSION, STORE_DEFINITIONS)
+      .then(async (database) => {
+        await migrateLegacyLifeTasks(database)
+        await migrateLegacyMeals(database)
+        return database
+      })
+      .catch((error: unknown) => {
+        databasePromise = null
+        throw error
+      })
   }
   return databasePromise
 }
@@ -645,31 +1382,38 @@ export function getDatabase(): Promise<IDBDatabase> {
  */
 async function migrateLegacyLifeTasks(database: IDBDatabase): Promise<void> {
   if (!isIndexedDbAvailable()) return
-  const legacyDatabase = await new Promise<IDBDatabase | null>((resolve, reject) => {
-    const request = indexedDB.open('mehr-life-time')
-    let createdForCheck = false
-    request.onupgradeneeded = (event) => {
-      createdForCheck = event.oldVersion === 0
-    }
-    request.onsuccess = () => {
-      const source = request.result
-      if (!source.objectStoreNames.contains('tasks')) {
-        source.close()
-        if (createdForCheck) {
-          void deleteDatabase('mehr-life-time').then(() => resolve(null), reject)
-        } else resolve(null)
-        return
+  const legacyDatabase = await new Promise<IDBDatabase | null>(
+    (resolve, reject) => {
+      const request = indexedDB.open('mehr-life-time')
+      let createdForCheck = false
+      request.onupgradeneeded = (event) => {
+        createdForCheck = event.oldVersion === 0
       }
-      resolve(source)
+      request.onsuccess = () => {
+        const source = request.result
+        if (!source.objectStoreNames.contains('tasks')) {
+          source.close()
+          if (createdForCheck) {
+            void deleteDatabase('mehr-life-time').then(
+              () => resolve(null),
+              reject
+            )
+          } else resolve(null)
+          return
+        }
+        resolve(source)
+      }
+      request.onerror = () => reject(request.error)
     }
-    request.onerror = () => reject(request.error)
-  })
+  )
   if (!legacyDatabase) return
   try {
     const records = await getAllRecords<LegacyLifeTask>(legacyDatabase, 'tasks')
-    const valid = records.filter((row) =>
-      typeof row.id === 'string' && typeof row.title === 'string' &&
-      typeof row.createdAt === 'number'
+    const valid = records.filter(
+      (row) =>
+        typeof row.id === 'string' &&
+        typeof row.title === 'string' &&
+        typeof row.createdAt === 'number'
     )
     await putRecords(database, STORE_LEGACY_TASKS, valid)
   } finally {
@@ -679,8 +1423,9 @@ async function migrateLegacyLifeTasks(database: IDBDatabase): Promise<void> {
 
 export async function getLegacyTasks(): Promise<LegacyLifeTask[]> {
   const database = await getDatabase()
-  return (await getAllRecords<LegacyLifeTask>(database, STORE_LEGACY_TASKS))
-    .sort((a, b) => b.createdAt - a.createdAt)
+  return (
+    await getAllRecords<LegacyLifeTask>(database, STORE_LEGACY_TASKS)
+  ).sort((a, b) => b.createdAt - a.createdAt)
 }
 
 function assertFinite(value: number, label: string): void {
@@ -799,9 +1544,11 @@ function buildBlockRecord(
     notes: input.notes ?? base?.notes,
     elapsedSeconds: input.elapsedSeconds ?? base?.elapsedSeconds ?? 0,
     timerStartedAt:
-      input.status === 'paused' || input.status === 'completed' || input.status === 'rolled_over'
+      input.status === 'paused' ||
+      input.status === 'completed' ||
+      input.status === 'rolled_over'
         ? undefined
-        : input.timerStartedAt ?? base?.timerStartedAt,
+        : (input.timerStartedAt ?? base?.timerStartedAt),
     rolledOverFrom: input.rolledOverFrom ?? base?.rolledOverFrom,
     isCompanyWork: input.isCompanyWork ?? base?.isCompanyWork ?? true,
     priority,
@@ -871,11 +1618,24 @@ export async function deleteTimelineBlock(id: string): Promise<void> {
   await deleteRecords(database, STORE_TIMELINE_BLOCKS, [id])
 }
 
-export async function getWorkTasksByDate(date: Date | string | number): Promise<TimelineBlockRecord[]> {
-  return (await getTimelineBlocksByDate(date)).filter((block) => block.category === 'work' || block.category === 'freelance')
+export async function getWorkTasksByDate(
+  date: Date | string | number
+): Promise<TimelineBlockRecord[]> {
+  return (await getTimelineBlocksByDate(date)).filter(
+    (block) => block.category === 'work' || block.category === 'freelance'
+  )
 }
 export async function getAllWorkTasks(): Promise<TimelineBlockRecord[]> {
-  const db=await getDatabase(); return (await getAllRecords<TimelineBlockRecord>(db,STORE_TIMELINE_BLOCKS)).filter((block)=>block.category==='work'||block.category==='freelance').sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||a.startTime.localeCompare(b.startTime))
+  const db = await getDatabase()
+  return (await getAllRecords<TimelineBlockRecord>(db, STORE_TIMELINE_BLOCKS))
+    .filter(
+      (block) => block.category === 'work' || block.category === 'freelance'
+    )
+    .sort(
+      (a, b) =>
+        a.dateKey.localeCompare(b.dateKey) ||
+        a.startTime.localeCompare(b.startTime)
+    )
 }
 
 export interface WorkTaskInput {
@@ -894,65 +1654,125 @@ export type WorkTaskPatch = Partial<Omit<WorkTaskInput, 'startTime'>> & {
 }
 
 function validateWorkTaskWindow(start: Date, durationMinutes: number): Date {
-  if (!Number.isFinite(start.getTime())) throw new RangeError('startTime is invalid')
-  if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 720) throw new RangeError('durationMinutes must be between 1 and 720')
+  if (!Number.isFinite(start.getTime()))
+    throw new RangeError('startTime is invalid')
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < 1 ||
+    durationMinutes > 720
+  )
+    throw new RangeError('durationMinutes must be between 1 and 720')
   const end = new Date(start.getTime() + durationMinutes * 60_000)
-  if (toDateKey(start) !== toDateKey(end)) throw new RangeError('work tasks must end on the same day')
-  if (intersectsLunch(start, end)) throw new RangeError('work tasks cannot overlap the protected 13:00–14:00 lunch slot')
+  if (toDateKey(start) !== toDateKey(end))
+    throw new RangeError('work tasks must end on the same day')
+  if (intersectsLunch(start, end))
+    throw new RangeError(
+      'work tasks cannot overlap the protected 13:00–14:00 lunch slot'
+    )
   return end
 }
 
 /** Creates a task only when its entire scheduled interval is clear and outside the protected lunch hour. */
-export async function saveWorkTask(input: WorkTaskInput): Promise<TimelineBlockRecord> {
+export async function saveWorkTask(
+  input: WorkTaskInput
+): Promise<TimelineBlockRecord> {
   const start = toDate(input.startTime)
   const end = validateWorkTaskWindow(start, input.durationMinutes)
-  const record = buildBlockRecord({ title: input.title, category: input.isCompanyWork ? 'work' : 'freelance', startTime: start, endTime: end, durationMinutes: input.durationMinutes, energyLevelRequired: 3, status: 'planned', isCompanyWork: input.isCompanyWork, ...(input.notes !== undefined ? { notes: input.notes } : {}), priority: input.priority ?? 'medium', ...(input.projectId !== undefined ? { projectId: input.projectId } : {}) })
+  const record = buildBlockRecord({
+    title: input.title,
+    category: input.isCompanyWork ? 'work' : 'freelance',
+    startTime: start,
+    endTime: end,
+    durationMinutes: input.durationMinutes,
+    energyLevelRequired: 3,
+    status: 'planned',
+    isCompanyWork: input.isCompanyWork,
+    ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    priority: input.priority ?? 'medium',
+    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+  })
   const db = await getDatabase()
   const tx = db.transaction(STORE_TIMELINE_BLOCKS, 'readwrite')
   const complete = awaitTransaction(tx)
   try {
-    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(tx.objectStore(STORE_TIMELINE_BLOCKS).index('by_date_key').getAll(record.dateKey))
-    if (findWorkTaskConflict(record, scheduled)) throw new RangeError('work task overlaps another scheduled work task')
+    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(
+      tx
+        .objectStore(STORE_TIMELINE_BLOCKS)
+        .index('by_date_key')
+        .getAll(record.dateKey)
+    )
+    if (findWorkTaskConflict(record, scheduled))
+      throw new RangeError('work task overlaps another scheduled work task')
     tx.objectStore(STORE_TIMELINE_BLOCKS).put(record)
     await complete
     return record
   } catch (error) {
-    try { tx.abort() } catch { /* transaction already closed */ }
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
     await complete.catch(() => undefined)
     throw error
   }
 }
 
 /** Edits title, priority, notes, company flag, duration, or schedule without resetting elapsed time. */
-export async function updateWorkTask(id: string, patch: WorkTaskPatch): Promise<TimelineBlockRecord> {
+export async function updateWorkTask(
+  id: string,
+  patch: WorkTaskPatch
+): Promise<TimelineBlockRecord> {
   const db = await getDatabase()
-  const base = await getRecord<TimelineBlockRecord>(db, STORE_TIMELINE_BLOCKS, id)
+  const base = await getRecord<TimelineBlockRecord>(
+    db,
+    STORE_TIMELINE_BLOCKS,
+    id
+  )
   if (!base) throw new RangeError(`Work task "${id}" does not exist`)
-  if (base.status === 'completed' || base.status === 'skipped') throw new RangeError('completed tasks cannot be edited')
+  if (base.status === 'completed' || base.status === 'skipped')
+    throw new RangeError('completed tasks cannot be edited')
   const durationMinutes = patch.durationMinutes ?? base.durationMinutes
   const start = toDate(patch.startTime ?? base.startTime)
   const end = validateWorkTaskWindow(start, durationMinutes)
-  const record = buildBlockRecord({
-    id,
-    ...(patch.title !== undefined ? { title: patch.title } : {}),
-    ...(patch.isCompanyWork !== undefined ? { isCompanyWork: patch.isCompanyWork, category: patch.isCompanyWork ? 'work' : 'freelance' } : {}),
-    ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
-    ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
-    ...(patch.projectId !== undefined ? { projectId: patch.projectId } : {}),
-    startTime: start,
-    endTime: end,
-    durationMinutes,
-  }, base)
+  const record = buildBlockRecord(
+    {
+      id,
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.isCompanyWork !== undefined
+        ? {
+            isCompanyWork: patch.isCompanyWork,
+            category: patch.isCompanyWork ? 'work' : 'freelance',
+          }
+        : {}),
+      ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+      ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+      ...(patch.projectId !== undefined ? { projectId: patch.projectId } : {}),
+      startTime: start,
+      endTime: end,
+      durationMinutes,
+    },
+    base
+  )
   const tx = db.transaction(STORE_TIMELINE_BLOCKS, 'readwrite')
   const complete = awaitTransaction(tx)
   try {
-    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(tx.objectStore(STORE_TIMELINE_BLOCKS).index('by_date_key').getAll(record.dateKey))
-    if (findWorkTaskConflict(record, scheduled)) throw new RangeError('work task overlaps another scheduled work task')
+    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(
+      tx
+        .objectStore(STORE_TIMELINE_BLOCKS)
+        .index('by_date_key')
+        .getAll(record.dateKey)
+    )
+    if (findWorkTaskConflict(record, scheduled))
+      throw new RangeError('work task overlaps another scheduled work task')
     tx.objectStore(STORE_TIMELINE_BLOCKS).put(record)
     await complete
     return record
   } catch (error) {
-    try { tx.abort() } catch { /* transaction already closed */ }
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
     await complete.catch(() => undefined)
     throw error
   }
@@ -964,19 +1784,31 @@ export async function updateWorkTask(id: string, patch: WorkTaskPatch): Promise<
  */
 export async function deleteWorkTask(id: string): Promise<void> {
   const db = await getDatabase()
-  const tx = db.transaction([STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS], 'readwrite')
+  const tx = db.transaction(
+    [STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS],
+    'readwrite'
+  )
   const complete = awaitTransaction(tx)
   try {
     tx.objectStore(STORE_TIMELINE_BLOCKS).delete(id)
-    const sessions = await promisifyRequest<WorkSessionRecord[]>(tx.objectStore(STORE_WORK_SESSIONS).getAll())
+    const sessions = await promisifyRequest<WorkSessionRecord[]>(
+      tx.objectStore(STORE_WORK_SESSIONS).getAll()
+    )
     for (const session of sessions) {
       if (session.timelineBlockId !== id) continue
       const { timelineBlockId: _removed, ...rest } = session
-      tx.objectStore(STORE_WORK_SESSIONS).put({ ...rest, updatedAt: toIsoString(new Date()) })
+      tx.objectStore(STORE_WORK_SESSIONS).put({
+        ...rest,
+        updatedAt: toIsoString(new Date()),
+      })
     }
     await complete
   } catch (error) {
-    try { tx.abort() } catch { /* transaction already closed */ }
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
     await complete.catch(() => undefined)
     throw error
   }
@@ -993,38 +1825,51 @@ export async function autoRolloverStaleWorkTasks(
   const now = toDate(reference)
   if (!Number.isFinite(now.getTime())) return []
   const db = await getDatabase()
-  const all = await getAllRecords<TimelineBlockRecord>(db, STORE_TIMELINE_BLOCKS)
+  const all = await getAllRecords<TimelineBlockRecord>(
+    db,
+    STORE_TIMELINE_BLOCKS
+  )
   const todayKey = toDateKey(now)
-  const stale = all.filter((block) =>
-    (block.category === 'work' || block.category === 'freelance') &&
-    ['planned', 'paused', 'rolled_over'].includes(block.status) &&
-    (block.dateKey < todayKey || Date.parse(block.endTime) <= now.getTime())
+  const stale = all.filter(
+    (block) =>
+      (block.category === 'work' || block.category === 'freelance') &&
+      ['planned', 'paused', 'rolled_over'].includes(block.status) &&
+      (block.dateKey < todayKey || Date.parse(block.endTime) <= now.getTime())
   )
   if (stale.length === 0) return []
 
   const staleIds = new Set(stale.map((block) => block.id))
-  const busy = all.filter((block) =>
-    !staleIds.has(block.id) &&
-    ['planned', 'in_progress', 'paused', 'rolled_over'].includes(block.status)
+  const busy = all.filter(
+    (block) =>
+      !staleIds.has(block.id) &&
+      ['planned', 'in_progress', 'paused', 'rolled_over'].includes(block.status)
   )
   const moved: TimelineBlockRecord[] = []
   const startSearch = new Date(now.getTime() + 5 * 60_000)
 
-  for (const base of stale.sort((a, b) => a.startTime.localeCompare(b.startTime))) {
-    const durationMinutes = Math.min(720, Math.max(1, Math.round(base.durationMinutes)))
+  for (const base of stale.sort((a, b) =>
+    a.startTime.localeCompare(b.startTime)
+  )) {
+    const durationMinutes = Math.min(
+      720,
+      Math.max(1, Math.round(base.durationMinutes))
+    )
     const target = findNextFreeSlot(startSearch, durationMinutes, busy)
     if (!target) continue
     const settledSeconds = settleTimelineBlockSeconds(base, now.getTime())
-    const record = buildBlockRecord({
-      id: base.id,
-      startTime: target,
-      endTime: new Date(target.getTime() + durationMinutes * 60_000),
-      durationMinutes,
-      status: 'rolled_over',
-      elapsedSeconds: settledSeconds,
-      timerStartedAt: undefined,
-      rolledOverFrom: base.dateKey,
-    }, base)
+    const record = buildBlockRecord(
+      {
+        id: base.id,
+        startTime: target,
+        endTime: new Date(target.getTime() + durationMinutes * 60_000),
+        durationMinutes,
+        status: 'rolled_over',
+        elapsedSeconds: settledSeconds,
+        timerStartedAt: undefined,
+        rolledOverFrom: base.dateKey,
+      },
+      base
+    )
     await putRecords(db, STORE_TIMELINE_BLOCKS, [record])
     busy.push(record)
     moved.push(record)
@@ -1037,33 +1882,50 @@ let startupRolloverPromise: Promise<TimelineBlockRecord[]> | null = null
 /** Runs the overdue-task rollover once per app session; task readers await it so they never show pre-move data. */
 export function runStartupRollover(): Promise<TimelineBlockRecord[]> {
   if (!startupRolloverPromise) {
-    startupRolloverPromise = autoRolloverStaleWorkTasks().catch((error: unknown) => {
-      startupRolloverPromise = null
-      throw error
-    })
+    startupRolloverPromise = autoRolloverStaleWorkTasks().catch(
+      (error: unknown) => {
+        startupRolloverPromise = null
+        throw error
+      }
+    )
   }
   return startupRolloverPromise
 }
 
-async function recordTimerInterval(store: IDBObjectStore, block: TimelineBlockRecord, endedAt: Date): Promise<void> {
+async function recordTimerInterval(
+  store: IDBObjectStore,
+  block: TimelineBlockRecord,
+  endedAt: Date
+): Promise<void> {
   if (!block.timerStartedAt) return
   const startedAt = new Date(block.timerStartedAt)
-  const seconds = Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
+  const seconds = Math.max(
+    0,
+    Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)
+  )
   if (!seconds) return
-  store.put(buildWorkSessionRecord({
-    timelineBlockId: block.id,
-    clientName: block.title,
-    taskType: 'other',
-    durationHours: seconds / 3600,
-    date: startedAt,
-    isCompanyWork: block.isCompanyWork !== false,
-    notes: block.notes,
-  }))
+  store.put(
+    buildWorkSessionRecord({
+      timelineBlockId: block.id,
+      clientName: block.title,
+      taskType: 'other',
+      durationHours: seconds / 3600,
+      date: startedAt,
+      isCompanyWork: block.isCompanyWork !== false,
+      notes: block.notes,
+    })
+  )
 }
 
-async function mutateWorkTimer(id: string, action: 'start' | 'pause' | 'stop' | 'complete'): Promise<TimelineBlockRecord> {
+async function mutateWorkTimer(
+  id: string,
+  action: 'start' | 'pause' | 'stop' | 'complete'
+): Promise<TimelineBlockRecord> {
   const db = await getDatabase()
-  const tx = db.transaction([STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS], 'readwrite')
+  const tx = db.transaction(
+    [STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS],
+    'readwrite'
+  )
   const complete = awaitTransaction(tx)
   try {
     const store = tx.objectStore(STORE_TIMELINE_BLOCKS)
@@ -1073,50 +1935,121 @@ async function mutateWorkTimer(id: string, action: 'start' | 'pause' | 'stop' | 
     if (!base) throw new RangeError(`Work task "${id}" does not exist`)
     const now = new Date()
     if (action === 'start') {
-      const active = all.find((block) => block.id !== id && block.status === 'in_progress' && block.timerStartedAt)
+      const active = all.find(
+        (block) =>
+          block.id !== id &&
+          block.status === 'in_progress' &&
+          block.timerStartedAt
+      )
       if (active) throw new RangeError('another work timer is already running')
-      if (base.status === 'completed' || base.status === 'skipped') throw new RangeError('completed task cannot be restarted')
-      const record = buildBlockRecord({ id, status: 'in_progress', timerStartedAt: now.toISOString() }, base)
-      store.put(record); await complete; return record
+      if (base.status === 'completed' || base.status === 'skipped')
+        throw new RangeError('completed task cannot be restarted')
+      const record = buildBlockRecord(
+        { id, status: 'in_progress', timerStartedAt: now.toISOString() },
+        base
+      )
+      store.put(record)
+      await complete
+      return record
     }
-    const status = action === 'complete' ? 'completed' : action === 'stop' ? 'planned' : 'paused'
+    const status =
+      action === 'complete'
+        ? 'completed'
+        : action === 'stop'
+          ? 'planned'
+          : 'paused'
     const settledSeconds = settleTimelineBlockSeconds(base, now.getTime())
-    const record = buildBlockRecord({ id, status, elapsedSeconds: settledSeconds }, base)
+    const record = buildBlockRecord(
+      { id, status, elapsedSeconds: settledSeconds },
+      base
+    )
     await recordTimerInterval(sessions, base, now)
-    store.put(record); await complete; return record
+    store.put(record)
+    await complete
+    return record
   } catch (error) {
-    try { tx.abort() } catch { /* transaction already closed */ }
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
     await complete.catch(() => undefined)
     throw error
   }
 }
 
-export function startWorkTaskTimer(id: string): Promise<TimelineBlockRecord> { return mutateWorkTimer(id, 'start') }
-export function pauseWorkTaskTimer(id: string): Promise<TimelineBlockRecord> { return mutateWorkTimer(id, 'pause') }
+export function startWorkTaskTimer(id: string): Promise<TimelineBlockRecord> {
+  return mutateWorkTimer(id, 'start')
+}
+export function pauseWorkTaskTimer(id: string): Promise<TimelineBlockRecord> {
+  return mutateWorkTimer(id, 'pause')
+}
 /** Ends the current interval and returns the task to its scheduled state. */
-export function stopWorkTaskTimer(id: string): Promise<TimelineBlockRecord> { return mutateWorkTimer(id, 'stop') }
-export function completeWorkTask(id: string): Promise<TimelineBlockRecord> { return mutateWorkTimer(id, 'complete') }
+export function stopWorkTaskTimer(id: string): Promise<TimelineBlockRecord> {
+  return mutateWorkTimer(id, 'stop')
+}
+export function completeWorkTask(id: string): Promise<TimelineBlockRecord> {
+  return mutateWorkTimer(id, 'complete')
+}
 
-export async function rolloverWorkTask(id: string, targetDate: string): Promise<TimelineBlockRecord> {
-  const db = await getDatabase(); const tx = db.transaction([STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS], 'readwrite'); const complete = awaitTransaction(tx)
+export async function rolloverWorkTask(
+  id: string,
+  targetDate: string
+): Promise<TimelineBlockRecord> {
+  const db = await getDatabase()
+  const tx = db.transaction(
+    [STORE_TIMELINE_BLOCKS, STORE_WORK_SESSIONS],
+    'readwrite'
+  )
+  const complete = awaitTransaction(tx)
   try {
     const store = tx.objectStore(STORE_TIMELINE_BLOCKS)
     const sessions = tx.objectStore(STORE_WORK_SESSIONS)
-    const base = await promisifyRequest<TimelineBlockRecord | undefined>(store.get(id))
+    const base = await promisifyRequest<TimelineBlockRecord | undefined>(
+      store.get(id)
+    )
     if (!base) throw new RangeError(`Work task "${id}" does not exist`)
-    if (base.status === 'completed' || base.status === 'skipped') throw new RangeError('completed task cannot be rolled over')
+    if (base.status === 'completed' || base.status === 'skipped')
+      throw new RangeError('completed task cannot be rolled over')
     const dateKey = targetDate || nextDateKey(base.dateKey)
     const oldStart = new Date(base.startTime)
-    const newStart = new Date(`${dateKey}T${String(oldStart.getHours()).padStart(2,'0')}:${String(oldStart.getMinutes()).padStart(2,'0')}:00`)
+    const newStart = new Date(
+      `${dateKey}T${String(oldStart.getHours()).padStart(2, '0')}:${String(oldStart.getMinutes()).padStart(2, '0')}:00`
+    )
     const newEnd = new Date(newStart.getTime() + base.durationMinutes * 60_000)
-    if (intersectsLunch(newStart,newEnd)) throw new RangeError('work task cannot overlap the protected lunch slot')
-    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(store.index('by_date_key').getAll(dateKey))
+    if (intersectsLunch(newStart, newEnd))
+      throw new RangeError('work task cannot overlap the protected lunch slot')
+    const scheduled = await promisifyRequest<TimelineBlockRecord[]>(
+      store.index('by_date_key').getAll(dateKey)
+    )
     const settledSeconds = settleTimelineBlockSeconds(base)
-    const record = buildBlockRecord({ id, startTime: newStart, endTime: newEnd, status: 'rolled_over', elapsedSeconds: settledSeconds, timerStartedAt: undefined, rolledOverFrom: base.dateKey }, base)
-    if (findWorkTaskConflict(record, scheduled)) throw new RangeError('work task overlaps another scheduled work task')
+    const record = buildBlockRecord(
+      {
+        id,
+        startTime: newStart,
+        endTime: newEnd,
+        status: 'rolled_over',
+        elapsedSeconds: settledSeconds,
+        timerStartedAt: undefined,
+        rolledOverFrom: base.dateKey,
+      },
+      base
+    )
+    if (findWorkTaskConflict(record, scheduled))
+      throw new RangeError('work task overlaps another scheduled work task')
     await recordTimerInterval(sessions, base, new Date())
-    store.put(record); await complete; return record
-  } catch (error) { try { tx.abort() } catch { /* transaction already closed */ }; await complete.catch(()=>undefined); throw error }
+    store.put(record)
+    await complete
+    return record
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      /* transaction already closed */
+    }
+    await complete.catch(() => undefined)
+    throw error
+  }
 }
 
 export async function countTimelineBlocks(): Promise<number> {
@@ -1366,10 +2299,14 @@ export function summarizeWorkSessions(
     totalHours: all.seconds / 3600,
     companyHours: company.seconds / 3600,
     freelanceHours: freelance.seconds / 3600,
-    sessionCount: all.sessions.length + blocks.filter((block) => timelineBlockSeconds(block) > 0).length,
+    sessionCount:
+      all.sessions.length +
+      blocks.filter((block) => timelineBlockSeconds(block) > 0).length,
     clientNames: [],
   }
-  totals.clientNames = [...new Set(all.sessions.map((session) => session.clientName))].sort((a, b) => a.localeCompare(b))
+  totals.clientNames = [
+    ...new Set(all.sessions.map((session) => session.clientName)),
+  ].sort((a, b) => a.localeCompare(b))
   return totals
 }
 
@@ -1378,19 +2315,31 @@ export async function getWorkTotals(
   to: Date | string | number,
   filter: WorkSessionFilter = 'all'
 ): Promise<WorkTotals> {
-  const [sessions, blocks] = await Promise.all([getWorkSessionsByRange(from, to), getTimelineBlocksByRange(from, to)])
-  const workBlocks = blocks.filter((block) => block.category === 'work' || block.category === 'freelance')
+  const [sessions, blocks] = await Promise.all([
+    getWorkSessionsByRange(from, to),
+    getTimelineBlocksByRange(from, to),
+  ])
+  const workBlocks = blocks.filter(
+    (block) => block.category === 'work' || block.category === 'freelance'
+  )
   const totals = summarizeWorkSessions(sessions, workBlocks)
   if (filter === 'work_only' || filter === 'freelance_only') {
     const mode = filter === 'work_only' ? 'company' : 'freelance'
     const selected = calculateWorkTime(workBlocks, sessions, mode)
-    const selectedBlocks = workBlocks.filter((block) => mode === 'company' ? block.isCompanyWork !== false : block.isCompanyWork === false)
+    const selectedBlocks = workBlocks.filter((block) =>
+      mode === 'company'
+        ? block.isCompanyWork !== false
+        : block.isCompanyWork === false
+    )
     return {
       ...totals,
       totalHours: selected.seconds / 3600,
       companyHours: mode === 'company' ? selected.seconds / 3600 : 0,
       freelanceHours: mode === 'freelance' ? selected.seconds / 3600 : 0,
-      sessionCount: selected.sessions.length + selectedBlocks.filter((block) => timelineBlockSeconds(block) > 0).length,
+      sessionCount:
+        selected.sessions.length +
+        selectedBlocks.filter((block) => timelineBlockSeconds(block) > 0)
+          .length,
     }
   }
   return totals
@@ -1405,13 +2354,25 @@ export async function getWorkHoursByDay(
   const keys = listDateKeys(from, to)
   if (keys.length === 0) return []
 
-  const [sessions, blocks] = await Promise.all([getWorkSessionsByRange(from, to), getTimelineBlocksByRange(from, to)])
+  const [sessions, blocks] = await Promise.all([
+    getWorkSessionsByRange(from, to),
+    getTimelineBlocksByRange(from, to),
+  ])
   const hoursByKey = new Map<string, number>(keys.map((key) => [key, 0]))
-  const workBlocks = blocks.filter((block) => block.category === 'work' || block.category === 'freelance')
+  const workBlocks = blocks.filter(
+    (block) => block.category === 'work' || block.category === 'freelance'
+  )
   for (const dateKey of keys) {
-    const daySessions = sessions.filter((session) => session.dateKey === dateKey)
+    const daySessions = sessions.filter(
+      (session) => session.dateKey === dateKey
+    )
     const dayBlocks = workBlocks.filter((block) => block.dateKey === dateKey)
-    const mode = filter === 'work_only' ? 'company' : filter === 'freelance_only' ? 'freelance' : 'all'
+    const mode =
+      filter === 'work_only'
+        ? 'company'
+        : filter === 'freelance_only'
+          ? 'freelance'
+          : 'all'
     const workTime = calculateWorkTime(dayBlocks, daySessions, mode)
     hoursByKey.set(dateKey, workTime.seconds / 3600)
   }
@@ -1628,7 +2589,10 @@ export async function getStoreCounts(): Promise<Record<string, number>> {
   const counts = await Promise.all(
     STORE_DEFINITIONS.map(
       async (definition) =>
-        [definition.name, await countRecords(database, definition.name)] as const
+        [
+          definition.name,
+          await countRecords(database, definition.name),
+        ] as const
     )
   )
   return Object.fromEntries(counts)
@@ -1656,10 +2620,12 @@ export async function hasSeededData(): Promise<boolean> {
  */
 export function initializeOfflineStorage(_reference?: Date): Promise<void> {
   if (!initializationPromise) {
-    initializationPromise = getDatabase().then(() => undefined).catch((error: unknown) => {
-      initializationPromise = null
-      throw error
-    })
+    initializationPromise = getDatabase()
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        initializationPromise = null
+        throw error
+      })
   }
   return initializationPromise
 }
@@ -1673,14 +2639,32 @@ export async function resetDatabase(): Promise<void> {
     STORE_ENERGY_LOGS,
     STORE_META,
     STORE_DASHBOARD_DAYS,
-    STORE_WORKOUT_LOGS, STORE_VITALS, STORE_BODY_WEIGHTS, STORE_DINNER_LOGS,
-    STORE_STUDY_LOGS, STORE_RADAR_SAVED, STORE_RADAR_ITEMS,
-    STORE_FINANCE_ENTRIES, STORE_SOCIAL_DRAFTS, STORE_FINANCE_SETTINGS,
-    STORE_NEWS_ITEMS, STORE_MEAL_LOGS, STORE_LEGACY_TASKS, STORE_STUDY_TIMERS,
-    STORE_EDUCATION_ITEMS, STORE_PROJECTS, STORE_PROJECT_NOTES,
-    STORE_SOCIAL_ACTIVITIES, STORE_CARDIO_LOGS,
-    STORE_EDUCATION_TASKS, STORE_EDUCATION_REPORTS,
-    STORE_GYM_PLANS, STORE_GYM_EXERCISES, STORE_GYM_SESSIONS, STORE_GYM_SESSION_SETS,
+    STORE_WORKOUT_LOGS,
+    STORE_VITALS,
+    STORE_BODY_WEIGHTS,
+    STORE_DINNER_LOGS,
+    STORE_STUDY_LOGS,
+    STORE_RADAR_SAVED,
+    STORE_RADAR_ITEMS,
+    STORE_FINANCE_ENTRIES,
+    STORE_SOCIAL_DRAFTS,
+    STORE_FINANCE_SETTINGS,
+    STORE_NEWS_ITEMS,
+    STORE_MEAL_LOGS,
+    STORE_LEGACY_TASKS,
+    STORE_STUDY_TIMERS,
+    STORE_EDUCATION_ITEMS,
+    STORE_PROJECTS,
+    STORE_PROJECT_NOTES,
+    STORE_SOCIAL_ACTIVITIES,
+    STORE_CARDIO_LOGS,
+    STORE_EDUCATION_TASKS,
+    STORE_EDUCATION_REPORTS,
+    STORE_GYM_PLANS,
+    STORE_GYM_EXERCISES,
+    STORE_GYM_SESSIONS,
+    STORE_GYM_SESSION_SETS,
+    STORE_PLANNER_AVAILABILITY,
   ])
   initializationPromise = null
   startupRolloverPromise = null
@@ -1719,7 +2703,12 @@ export async function readSnapshot(
     sessions,
     energyLogs,
     summary: summarizeTimelineDay(blocks),
-    workTotals: summarizeWorkSessions(sessions, blocks.filter((block) => block.category === 'work' || block.category === 'freelance')),
+    workTotals: summarizeWorkSessions(
+      sessions,
+      blocks.filter(
+        (block) => block.category === 'work' || block.category === 'freelance'
+      )
+    ),
   }
 }
 

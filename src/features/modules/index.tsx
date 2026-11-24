@@ -3,15 +3,9 @@ import { HeaderActions } from '@/components/header-actions'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { GymPage } from '@/features/gym/gym-page'
-import { EnergyLogPage } from '@/features/modules/energy-log'
 import { MorningRoutinePage } from '@/features/modules/morning-routine'
-import { WorkTasksPage } from '@/features/tasks/work-tasks-page'
 
-export function Timeline() {
-  return <WorkTasksPage />
-}
-
-export function GoldenHour() {
+export function MorningRoutine() {
   return <MorningRoutinePage />
 }
 
@@ -28,8 +22,4 @@ export function Gym() {
       </Main>
     </>
   )
-}
-
-export function Energy() {
-  return <EnergyLogPage />
 }

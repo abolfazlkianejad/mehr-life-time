@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { EnergyLogRecord } from '@/types/timeline'
+import {
+  Activity,
+  BookOpen,
+  HeartPulse,
+  Soup,
+  Timer,
+  Dumbbell,
+  Moon,
+  Flame,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Activity, BookOpen, HeartPulse, Soup, Timer, Dumbbell, Moon, Flame } from 'lucide-react'
-import { Header } from '@/components/layout/header'
-import { HeaderActions } from '@/components/header-actions'
-import { Main } from '@/components/layout/main'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { toDateKey } from '@/lib/date-key'
+import { formatJalaliDateKey } from '@/lib/jalali'
+import { formatClockTimeValue } from '@/lib/time'
+import { calculateWorkTime } from '@/lib/work-time'
 import {
   getDashboardDay,
   getEnergyLogsByDate,
@@ -22,13 +30,20 @@ import {
   type WorkoutSet,
 } from '@/services/db'
 import { getCardioLogs } from '@/services/nutrition'
-import type { EnergyLogRecord } from '@/types/timeline'
-import { toDateKey } from '@/lib/date-key'
-import { calculateWorkTime } from '@/lib/work-time'
-import { summarizeNutrition } from '@/features/nutrition/nutrition-utils'
+import { Badge } from '@/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { HeaderActions } from '@/components/header-actions'
+import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
 import { trackOfLog } from '@/features/learning/learning-utils'
-import { formatJalaliDateKey } from '@/lib/jalali'
-import { formatClockTimeValue } from '@/lib/time'
+import { summarizeNutrition } from '@/features/nutrition/nutrition-utils'
 
 function bpState(reading?: VitalRecord): 'normal' | 'high' | 'low' | 'missing' {
   if (!reading) return 'missing'
@@ -47,8 +62,12 @@ export function DayReviewPage() {
   const [sets, setSets] = useState<WorkoutSet[]>([])
   const [studyLogs, setStudyLogs] = useState<StudyLog[]>([])
   const [energyLogs, setEnergyLogs] = useState<EnergyLogRecord[]>([])
-  const [nutrition, setNutrition] = useState<ReturnType<typeof summarizeNutrition> | null>(null)
-  const [mealLines, setMealLines] = useState<Array<{ id: string; label: string }>>([])
+  const [nutrition, setNutrition] = useState<ReturnType<
+    typeof summarizeNutrition
+  > | null>(null)
+  const [mealLines, setMealLines] = useState<
+    Array<{ id: string; label: string }>
+  >([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
@@ -68,25 +87,39 @@ export function DayReviewPage() {
       getStudyLogs(date),
       getEnergyLogsByDate(date),
     ])
-      .then(([savedDay, meals, cardio, vitals, sessions, tasks, workouts, study, energy]) => {
-        if (!active) return
-        setDay(savedDay)
-        setNutrition(summarizeNutrition(meals, cardio))
-        setMealLines(
-          meals.map((meal) => ({
-            id: meal.id,
-            label: `${meal.description} · ${meal.calories} kcal`,
-          }))
-        )
-        setMorning(vitals.find((vital) => vital.period === 'morning'))
-        setEvening(vitals.find((vital) => vital.period === 'evening'))
-        const actualWork = calculateWorkTime(tasks, sessions, 'all').seconds
-        const hasActualWork = sessions.length > 0 || tasks.some((task) => (task.elapsedSeconds ?? 0) > 0)
-        setWorkHours(hasActualWork ? actualWork / 3600 : undefined)
-        setSets(workouts)
-        setStudyLogs(study)
-        setEnergyLogs(energy)
-      })
+      .then(
+        ([
+          savedDay,
+          meals,
+          cardio,
+          vitals,
+          sessions,
+          tasks,
+          workouts,
+          study,
+          energy,
+        ]) => {
+          if (!active) return
+          setDay(savedDay)
+          setNutrition(summarizeNutrition(meals, cardio))
+          setMealLines(
+            meals.map((meal) => ({
+              id: meal.id,
+              label: `${meal.description} · ${meal.calories} kcal`,
+            }))
+          )
+          setMorning(vitals.find((vital) => vital.period === 'morning'))
+          setEvening(vitals.find((vital) => vital.period === 'evening'))
+          const actualWork = calculateWorkTime(tasks, sessions, 'all').seconds
+          const hasActualWork =
+            sessions.length > 0 ||
+            tasks.some((task) => (task.elapsedSeconds ?? 0) > 0)
+          setWorkHours(hasActualWork ? actualWork / 3600 : undefined)
+          setSets(workouts)
+          setStudyLogs(study)
+          setEnergyLogs(energy)
+        }
+      )
       .catch(() => {
         if (active) setLoadError(true)
       })
@@ -105,23 +138,26 @@ export function DayReviewPage() {
   const energyAverage = useMemo(
     () =>
       energyLogs.length
-        ? (energyLogs.reduce((total, log) => total + log.score, 0) / energyLogs.length).toFixed(1)
+        ? (
+            energyLogs.reduce((total, log) => total + log.score, 0) /
+            energyLogs.length
+          ).toFixed(1)
         : null,
     [energyLogs]
   )
   const hasAnyData = Boolean(
     day?.sleepTime ||
-      day?.wakeTime ||
-      day?.bookName ||
-      day?.readingMinutes !== undefined ||
-      day?.note?.trim() ||
-      morning ||
-      evening ||
-      workHours !== undefined ||
-      sets.length ||
-      studyLogs.length ||
-      energyLogs.length ||
-      (nutrition && (nutrition.intake > 0 || nutrition.burned > 0))
+    day?.wakeTime ||
+    day?.bookName ||
+    day?.readingMinutes !== undefined ||
+    day?.note?.trim() ||
+    morning ||
+    evening ||
+    workHours !== undefined ||
+    sets.length ||
+    studyLogs.length ||
+    energyLogs.length ||
+    (nutrition && (nutrition.intake > 0 || nutrition.burned > 0))
   )
   const needsReview = [bpState(morning), bpState(evening)].some(
     (state) => state === 'high' || state === 'low'
@@ -146,10 +182,22 @@ export function DayReviewPage() {
         </div>
         <label className='flex max-w-xs flex-col gap-2 text-sm font-medium'>
           {t('review.date')}
-          <JalaliDatePicker value={date} onChange={setDate} ariaLabel={t('review.date')} />
+          <JalaliDatePicker
+            value={date}
+            onChange={setDate}
+            ariaLabel={t('review.date')}
+          />
         </label>
-        {loading && <p role='status' className='text-sm text-muted-foreground'>{t('review.loading')}</p>}
-        {loadError && <p role='alert' className='text-sm text-destructive'>{t('review.loadError')}</p>}
+        {loading && (
+          <p role='status' className='text-sm text-muted-foreground'>
+            {t('review.loading')}
+          </p>
+        )}
+        {loadError && (
+          <p role='alert' className='text-sm text-destructive'>
+            {t('review.loadError')}
+          </p>
+        )}
 
         <Card className='border-primary/30'>
           <CardHeader>
@@ -160,7 +208,15 @@ export function DayReviewPage() {
             <CardDescription>{t('review.statusHint')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Badge variant={status === 'productive' ? 'default' : status === 'unknown' ? 'outline' : 'secondary'}>
+            <Badge
+              variant={
+                status === 'productive'
+                  ? 'default'
+                  : status === 'unknown'
+                    ? 'outline'
+                    : 'secondary'
+              }
+            >
               {t(`review.status.${status}`)}
             </Badge>
           </CardContent>
@@ -175,7 +231,13 @@ export function DayReviewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className='text-2xl font-bold tabular-nums'>
-              {workHours === undefined ? t('review.notRecorded') : <>{workHours.toFixed(1)} {t('review.hours')}</>}
+              {workHours === undefined ? (
+                t('review.notRecorded')
+              ) : (
+                <>
+                  {workHours.toFixed(1)} {t('review.hours')}
+                </>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -209,12 +271,17 @@ export function DayReviewPage() {
             </CardHeader>
             <CardContent className='space-y-2'>
               <p className='text-2xl font-bold tabular-nums'>
-                {nutrition && nutrition.intake > 0 ? <>{nutrition.intake} kcal</> : t('review.notRecorded')}
+                {nutrition && nutrition.intake > 0 ? (
+                  <>{nutrition.intake} kcal</>
+                ) : (
+                  t('review.notRecorded')
+                )}
               </p>
               {nutrition && nutrition.burned > 0 ? (
                 <p className='flex items-center gap-1 text-xs text-muted-foreground'>
                   <Flame className='size-3.5' />
-                  {t('nutrition.summary.burned')}: {nutrition.burned} kcal · {t('nutrition.summary.net')}: {nutrition.net} kcal
+                  {t('nutrition.summary.burned')}: {nutrition.burned} kcal ·{' '}
+                  {t('nutrition.summary.net')}: {nutrition.net} kcal
                 </p>
               ) : null}
             </CardContent>
@@ -253,7 +320,10 @@ export function DayReviewPage() {
             <CardContent className='text-sm'>
               {studyLogs.length ? (
                 <>
-                  {t('review.studySummary', { minutes: studyMinutes, count: studyLogs.length })}
+                  {t('review.studySummary', {
+                    minutes: studyMinutes,
+                    count: studyLogs.length,
+                  })}
                   <ul className='mt-2 space-y-1 text-muted-foreground'>
                     {studyLogs.map((log) => (
                       <li key={log.id}>
@@ -278,7 +348,10 @@ export function DayReviewPage() {
             <CardContent className='text-sm'>
               {energyAverage === null
                 ? t('review.notRecorded')
-                : t('review.energySummary', { average: energyAverage, count: energyLogs.length })}
+                : t('review.energySummary', {
+                    average: energyAverage,
+                    count: energyLogs.length,
+                  })}
             </CardContent>
           </Card>
           <Card>
@@ -291,15 +364,31 @@ export function DayReviewPage() {
             <CardContent className='space-y-2 text-sm'>
               {day?.sleepTime || day?.wakeTime ? (
                 <>
-                  {day.sleepTime && <p>{t('review.sleepTime')}: {formatClockTimeValue(day.sleepTime, i18n.language)}</p>}
-                  {day.wakeTime && <p>{t('review.wakeTime')}: {formatClockTimeValue(day.wakeTime, i18n.language)}</p>}
+                  {day.sleepTime && (
+                    <p>
+                      {t('review.sleepTime')}:{' '}
+                      {formatClockTimeValue(day.sleepTime, i18n.language)}
+                    </p>
+                  )}
+                  {day.wakeTime && (
+                    <p>
+                      {t('review.wakeTime')}:{' '}
+                      {formatClockTimeValue(day.wakeTime, i18n.language)}
+                    </p>
+                  )}
                 </>
               ) : (
                 t('review.notRecorded')
               )}
-              {day?.bookName && <p>{t('review.book')}: {day.bookName}</p>}
+              {day?.bookName && (
+                <p>
+                  {t('review.book')}: {day.bookName}
+                </p>
+              )}
               {day?.readingMinutes !== undefined && (
-                <p>{t('review.readingMinutes', { count: day.readingMinutes })}</p>
+                <p>
+                  {t('review.readingMinutes', { count: day.readingMinutes })}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -318,9 +407,14 @@ export function DayReviewPage() {
                 </p>
               ))
             ) : (
-              <p className='text-sm text-muted-foreground'>{t('review.noMeals')}</p>
+              <p className='text-sm text-muted-foreground'>
+                {t('review.noMeals')}
+              </p>
             )}
-            <a className='inline-block text-sm text-primary underline' href='/nutrition'>
+            <a
+              className='inline-block text-sm text-primary underline'
+              href='/nutrition'
+            >
               {t('review.openNutrition')}
             </a>
           </CardContent>
@@ -333,12 +427,14 @@ export function DayReviewPage() {
               <CardDescription>{formatJalaliDateKey(date)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className='whitespace-pre-wrap text-sm'>{day.note}</p>
+              <p className='text-sm whitespace-pre-wrap'>{day.note}</p>
             </CardContent>
           </Card>
         ) : null}
 
-        {!loading && !hasAnyData && <p className='text-sm text-muted-foreground'>{t('review.empty')}</p>}
+        {!loading && !hasAnyData && (
+          <p className='text-sm text-muted-foreground'>{t('review.empty')}</p>
+        )}
       </Main>
     </>
   )

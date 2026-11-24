@@ -1,3 +1,4 @@
+import { createId } from '@/lib/id'
 import { getDatabase, STORE_SOCIAL_ACTIVITIES } from '@/services/db'
 import {
   deleteRecords,
@@ -6,7 +7,6 @@ import {
   getRecord,
   putRecords,
 } from '@/services/idb'
-import { createId } from '@/lib/id'
 
 export const SOCIAL_PLATFORMS = [
   'instagram',
@@ -56,9 +56,14 @@ function buildActivity(
   base?: SocialActivity
 ): SocialActivity {
   if (!input.title.trim()) throw new RangeError('title is required')
-  if (!SOCIAL_PLATFORMS.includes(input.platform)) throw new RangeError('unknown social platform')
-  if (!SOCIAL_STATUSES.includes(input.status)) throw new RangeError('unknown social status')
-  if (input.scheduledDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.scheduledDate)) {
+  if (!SOCIAL_PLATFORMS.includes(input.platform))
+    throw new RangeError('unknown social platform')
+  if (!SOCIAL_STATUSES.includes(input.status))
+    throw new RangeError('unknown social status')
+  if (
+    input.scheduledDate !== undefined &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(input.scheduledDate)
+  ) {
     throw new RangeError('scheduled date must use YYYY-MM-DD')
   }
   const now = new Date().toISOString()

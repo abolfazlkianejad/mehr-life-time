@@ -62,11 +62,15 @@ describe('education course service', () => {
     expect(training.url).toBe('https://example.com/react')
     expect(training.estimatedHours).toBe(12.5)
 
-    expect((await getEducationItems('masters')).map((item) => item.id)).toEqual([masters.id])
-    expect((await getEducationItems('university')).map((item) => item.id)).toEqual([
-      university.id,
+    expect((await getEducationItems('masters')).map((item) => item.id)).toEqual(
+      [masters.id]
+    )
+    expect(
+      (await getEducationItems('university')).map((item) => item.id)
+    ).toEqual([university.id])
+    expect((await getEducationItems('course')).map((item) => item.id)).toEqual([
+      training.id,
     ])
-    expect((await getEducationItems('course')).map((item) => item.id)).toEqual([training.id])
     expect(await getEducationItems()).toHaveLength(3)
   })
 
@@ -96,9 +100,9 @@ describe('education course service', () => {
     expect(edited.id).toBe(saved.id)
     expect(edited.title).toBe('روش تحقیق پیشرفته')
     expect(edited.createdAt).toBe(saved.createdAt)
-    expect((await getEducationItems('university')).map((item) => item.id)).toEqual([
-      other.id,
-    ])
+    expect(
+      (await getEducationItems('university')).map((item) => item.id)
+    ).toEqual([other.id])
 
     await deleteEducationItem(saved.id)
     expect(await getEducationItems('masters')).toHaveLength(0)
@@ -189,7 +193,12 @@ describe('education course service', () => {
 
     const items = await getEducationItems()
     expect(items.map((item) => item.id)).toEqual(
-      expect.arrayContaining([valid.id, 'legacy_no_date', 'legacy_epoch', 'legacy_ml'])
+      expect.arrayContaining([
+        valid.id,
+        'legacy_no_date',
+        'legacy_epoch',
+        'legacy_ml',
+      ])
     )
     expect(items.map((item) => item.id)).not.toContain('legacy_unknown')
 
@@ -209,7 +218,9 @@ describe('education course service', () => {
       STORE_EDUCATION_ITEMS
     )
     expect(stored).toHaveLength(5)
-    expect(stored.find((row) => row.id === 'legacy_no_date')?.createdAt).toBeUndefined()
+    expect(
+      stored.find((row) => row.id === 'legacy_no_date')?.createdAt
+    ).toBeUndefined()
   })
 
   it('normalizes malformed rows for display without throwing', () => {

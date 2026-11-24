@@ -107,3 +107,9 @@ logs/
 # Keep TypeScript source utilities trackable despite Python's lib/ rule
 !/src/lib/
 !/src/lib/**
+
+# Local secret and signing material (never commit)
+secrets.json
+*.pem
+*.key
+*.pfx

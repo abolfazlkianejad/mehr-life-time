@@ -1,19 +1,34 @@
+import type { TimelineBlockRecord } from '@/types/timeline'
 import { describe, expect, it } from 'vitest'
+import type { EducationTask } from '@/services/education'
 import {
   buildUnifiedTasks,
   filterUnifiedTasks,
+  isDayKey,
   sortUnifiedTasks,
   summarizeUnifiedTasks,
+  DEFAULT_UNIFIED_TASK_FILTERS,
+  type UnifiedTaskFilters,
 } from './unified-tasks'
-import type { EducationTask } from '@/services/education'
-import type { TimelineBlockRecord } from '@/types/timeline'
-import { toDateKey } from '@/lib/date-key'
 
-const DAY_PAST = toDateKey(new Date(2026, 0, 10))
-const DAY_ONE = toDateKey(new Date(2026, 0, 15))
-const DAY_TWO = toDateKey(new Date(2026, 0, 16))
+/** Thursday 2026-01-15; its Saturday-first week is 2026-01-10 … 2026-01-16. */
+const TODAY = '2026-01-15'
+const YESTERDAY = '2026-01-14'
+const WEEK_START = '2026-01-10'
+const LAST_WEEK_DAY = '2026-01-05'
+const NEXT_WEEK_DAY = '2026-01-17'
+const LONG_AGO = '2025-11-01'
 
-function workTask(overrides: Partial<TimelineBlockRecord> = {}): TimelineBlockRecord {
+const filters = (
+  patch: Partial<UnifiedTaskFilters> = {}
+): UnifiedTaskFilters => ({
+  ...DEFAULT_UNIFIED_TASK_FILTERS,
+  ...patch,
+})
+
+function workTask(
+  overrides: Partial<TimelineBlockRecord> = {}
+): TimelineBlockRecord {
   return {
     id: 'work-1',
     title: 'تهیه گزارش',
@@ -26,7 +41,7 @@ function workTask(overrides: Partial<TimelineBlockRecord> = {}): TimelineBlockRe
     isConflictFree: true,
     createdAt: '2026-01-10T10:00:00.000Z',
     updatedAt: '2026-01-10T10:00:00.000Z',
-    dateKey: DAY_ONE,
+    dateKey: TODAY,
     ...overrides,
   }
 }
@@ -37,7 +52,7 @@ function educationTask(overrides: Partial<EducationTask> = {}): EducationTask {
     track: 'masters',
     title: 'تمرین آمار',
     priority: 'medium',
-    dateKey: DAY_ONE,
+    dateKey: TODAY,
     time: '09:30',
     estimatedMinutes: 45,
     status: 'pending',
@@ -56,7 +71,7 @@ describe('buildUnifiedTasks', () => {
     expect(task.key).toBe('work:work-1')
     expect(task.source).toBe('work')
     expect(task.time).toBe('09:00')
-    expect(task.dateKey).toBe(DAY_ONE)
+    expect(task.dateKey).toBe(TODAY)
     expect(task.estimatedMinutes).toBe(60)
     expect(task.priority).toBe('high')
     expect(task.bucket).toBe('open')
@@ -69,7 +84,9 @@ describe('buildUnifiedTasks', () => {
   })
 
   it('buckets and displays every work status', () => {
-    const cases: Array<[TimelineBlockRecord['status'], string | undefined, string, string]> = [
+    const cases: Array<
+      [TimelineBlockRecord['status'], string | undefined, string, string]
+    > = [
       ['planned', undefined, 'open', 'planned'],
       ['in_progress', '2026-01-15T09:05:00.000Z', 'active', 'in_progress'],
       ['in_progress', undefined, 'active', 'paused'],
@@ -79,7 +96,10 @@ describe('buildUnifiedTasks', () => {
       ['rolled_over', undefined, 'open', 'rolled_over'],
     ]
     for (const [status, timerStartedAt, bucket, display] of cases) {
-      const task = buildUnifiedTasks([workTask({ status, timerStartedAt })], [])[0]
+      const task = buildUnifiedTasks(
+        [workTask({ status, timerStartedAt })],
+        []
+      )[0]
       expect([task.status, task.bucket], status).toEqual([display, bucket])
     }
   })
@@ -89,11 +109,19 @@ describe('buildUnifiedTasks', () => {
       [],
       [
         educationTask({ id: 'edu-1', track: 'masters' }),
-        educationTask({ id: 'edu-2', track: 'university', courseId: 'course-1' }),
+        educationTask({
+          id: 'edu-2',
+          track: 'university',
+          courseId: 'course-1',
+        }),
         educationTask({ id: 'edu-3', track: 'course' }),
       ]
     )
-    expect(tasks.map((task) => task.track)).toEqual(['masters', 'university', 'course'])
+    expect(tasks.map((task) => task.track)).toEqual([
+      'masters',
+      'university',
+      'course',
+    ])
     expect(tasks[1].courseId).toBe('course-1')
     expect(tasks[1].key).toBe('education:edu-2')
     expect(tasks[0].time).toBe('09:30')
@@ -101,7 +129,9 @@ describe('buildUnifiedTasks', () => {
   })
 
   it('buckets and displays every education status', () => {
-    const cases: Array<[EducationTask['status'], string | undefined, string, string]> = [
+    const cases: Array<
+      [EducationTask['status'], string | undefined, string, string]
+    > = [
       ['pending', undefined, 'open', 'pending'],
       ['in_progress', '2026-01-15T09:05:00.000Z', 'active', 'in_progress'],
       ['in_progress', undefined, 'active', 'paused'],
@@ -109,7 +139,10 @@ describe('buildUnifiedTasks', () => {
       ['completed', undefined, 'done', 'completed'],
     ]
     for (const [status, timerStartedAt, bucket, display] of cases) {
-      const task = buildUnifiedTasks([], [educationTask({ status, timerStartedAt })])[0]
+      const task = buildUnifiedTasks(
+        [],
+        [educationTask({ status, timerStartedAt })]
+      )[0]
       expect([task.status, task.bucket], status).toEqual([display, bucket])
     }
   })
@@ -127,89 +160,145 @@ describe('buildUnifiedTasks', () => {
   })
 })
 
+describe('isDayKey', () => {
+  it('accepts stored day keys only', () => {
+    expect(isDayKey(TODAY)).toBe(true)
+    expect(isDayKey('2026-1-5')).toBe(false)
+    expect(isDayKey('')).toBe(false)
+    expect(isDayKey(null)).toBe(false)
+    expect(isDayKey(20260115)).toBe(false)
+  })
+})
+
 describe('filterUnifiedTasks', () => {
   const tasks = buildUnifiedTasks(
     [
-      workTask({ id: 'work-1', title: 'گزارش هفتگی', status: 'planned', dateKey: DAY_ONE }),
-      workTask({ id: 'work-2', title: 'جلسه مشتری', status: 'completed', dateKey: DAY_PAST }),
+      workTask({
+        id: 'work-today',
+        title: 'گزارش هفتگی',
+        status: 'planned',
+        dateKey: TODAY,
+      }),
+      workTask({
+        id: 'work-yesterday',
+        title: 'جلسه مشتری',
+        status: 'completed',
+        dateKey: YESTERDAY,
+      }),
+      workTask({
+        id: 'work-week',
+        title: 'پیگیری پروژه',
+        status: 'paused',
+        dateKey: WEEK_START,
+      }),
+      workTask({
+        id: 'work-next',
+        title: 'برنامه آینده',
+        dateKey: NEXT_WEEK_DAY,
+      }),
+      workTask({ id: 'work-old', title: 'کار قدیمی', dateKey: LONG_AGO }),
     ],
     [
       educationTask({
-        id: 'edu-1',
+        id: 'edu-today',
         title: 'تمرین آمار',
         status: 'in_progress',
         timerStartedAt: '2026-01-15T09:05:00.000Z',
-        dateKey: DAY_ONE,
+        dateKey: TODAY,
       }),
-      educationTask({ id: 'edu-2', title: 'مرور درس', status: 'pending', dateKey: DAY_TWO }),
+      educationTask({
+        id: 'edu-last-week',
+        title: 'مرور درس',
+        dateKey: LAST_WEEK_DAY,
+      }),
     ]
   )
 
+  const ids = (patch: Partial<UnifiedTaskFilters> = {}) =>
+    filterUnifiedTasks(tasks, filters(patch)).map((task) => task.id)
+
   it('filters by source', () => {
-    const workOnly = filterUnifiedTasks(
-      tasks,
-      { source: 'work', status: 'all', range: 'all', query: '' },
-      DAY_ONE
-    )
-    expect(workOnly.map((task) => task.id)).toEqual(['work-1', 'work-2'])
-    const educationOnly = filterUnifiedTasks(
-      tasks,
-      { source: 'education', status: 'all', range: 'all', query: '' },
-      DAY_ONE
-    )
-    expect(educationOnly.map((task) => task.id)).toEqual(['edu-1', 'edu-2'])
+    expect(ids({ source: 'work' })).toEqual([
+      'work-today',
+      'work-yesterday',
+      'work-week',
+      'work-next',
+      'work-old',
+    ])
+    expect(ids({ source: 'education' })).toEqual(['edu-today', 'edu-last-week'])
   })
 
-  it('filters by normalized status', () => {
-    const done = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'done', range: 'all', query: '' },
-      DAY_ONE
-    )
-    expect(done.map((task) => task.id)).toEqual(['work-2'])
-    const active = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'active', range: 'all', query: '' },
-      DAY_ONE
-    )
-    expect(active.map((task) => task.id)).toEqual(['edu-1'])
+  it('filters by the five status buckets', () => {
+    expect(ids({ status: 'done' })).toEqual(['work-yesterday'])
+    expect(ids({ status: 'active' })).toEqual(['edu-today'])
+    expect(ids({ status: 'paused' })).toEqual(['work-week'])
+    expect(ids({ status: 'open' })).toEqual([
+      'work-today',
+      'work-next',
+      'work-old',
+      'edu-last-week',
+    ])
   })
 
-  it('filters by time range', () => {
-    const past = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'all', range: 'past', query: '' },
-      DAY_ONE
+  it('keeps only the exact selected day', () => {
+    expect(ids({ dateKey: TODAY })).toEqual(['work-today', 'edu-today'])
+    expect(ids({ dateKey: YESTERDAY })).toEqual(['work-yesterday'])
+  })
+
+  it('shows past and future days without leaking neighbours', () => {
+    expect(ids({ dateKey: NEXT_WEEK_DAY })).toEqual(['work-next'])
+    expect(ids({ dateKey: LONG_AGO })).toEqual(['work-old'])
+    expect(ids({ dateKey: '2026-01-16' })).toEqual([])
+  })
+
+  it('compares the stored key, never a range around it', () => {
+    const selected = ids({ dateKey: WEEK_START })
+    expect(selected).toEqual(['work-week'])
+    expect(selected).not.toContain('work-today')
+    expect(selected).not.toContain('edu-last-week')
+  })
+
+  it('disables the date restriction for an empty or malformed key', () => {
+    expect(ids({ dateKey: '' })).toHaveLength(7)
+    expect(ids({ dateKey: 'not-a-day' })).toHaveLength(7)
+  })
+
+  it('combines the selected day with status and source', () => {
+    expect(ids({ dateKey: TODAY, status: 'open', source: 'work' })).toEqual([
+      'work-today',
+    ])
+    expect(ids({ dateKey: TODAY, status: 'open' })).toEqual(['work-today'])
+  })
+
+  it('filters by priority and project', () => {
+    const tagged = buildUnifiedTasks(
+      [
+        workTask({ id: 'p1', projectId: 'project-1', priority: 'urgent' }),
+        workTask({ id: 'p2', projectId: 'project-2', priority: 'low' }),
+      ],
+      [educationTask({ id: 'e1', priority: 'high' })]
     )
-    expect(past.map((task) => task.id)).toEqual(['work-2'])
-    const today = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'all', range: 'today', query: '' },
-      DAY_ONE
-    )
-    expect(today.map((task) => task.id).sort()).toEqual(['edu-1', 'work-1'])
-    const upcoming = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'all', range: 'upcoming', query: '' },
-      DAY_ONE
-    )
-    expect(upcoming.map((task) => task.id)).toEqual(['edu-2'])
+    expect(
+      filterUnifiedTasks(tagged, filters({ priority: 'urgent' })).map(
+        (task) => task.id
+      )
+    ).toEqual(['p1'])
+    expect(
+      filterUnifiedTasks(tagged, filters({ priority: 'high' })).map(
+        (task) => task.id
+      )
+    ).toEqual(['e1'])
+    expect(
+      filterUnifiedTasks(tagged, filters({ projectId: 'project-2' })).map(
+        (task) => task.id
+      )
+    ).toEqual(['p2'])
   })
 
   it('searches titles case-insensitively', () => {
-    const found = filterUnifiedTasks(
-      tasks,
-      { source: 'all', status: 'all', range: 'all', query: 'آمار' },
-      DAY_ONE
-    )
-    expect(found.map((task) => task.id)).toEqual(['edu-1'])
-    expect(
-      filterUnifiedTasks(
-        tasks,
-        { source: 'all', status: 'all', range: 'all', query: 'گزارش' },
-        DAY_ONE
-      ).map((task) => task.id)
-    ).toEqual(['work-1'])
+    expect(ids({ query: 'آمار' })).toEqual(['edu-today'])
+    expect(ids({ query: 'گزارش' })).toEqual(['work-today'])
+    expect(ids({ dateKey: YESTERDAY, query: 'آمار' })).toEqual([])
   })
 })
 
@@ -221,7 +310,7 @@ describe('sortUnifiedTasks', () => {
         title: 'انجام‌شده فوری',
         status: 'completed',
         priority: 'urgent',
-        dateKey: DAY_ONE,
+        dateKey: TODAY,
         startTime: new Date(2026, 0, 15, 8, 0).toISOString(),
       }),
       workTask({
@@ -229,7 +318,7 @@ describe('sortUnifiedTasks', () => {
         title: 'باز متوسط',
         status: 'planned',
         priority: 'medium',
-        dateKey: DAY_ONE,
+        dateKey: TODAY,
         startTime: new Date(2026, 0, 15, 10, 0).toISOString(),
       }),
       workTask({
@@ -237,7 +326,7 @@ describe('sortUnifiedTasks', () => {
         title: 'باز متوسط زود',
         status: 'planned',
         priority: 'medium',
-        dateKey: DAY_ONE,
+        dateKey: TODAY,
         startTime: new Date(2026, 0, 15, 9, 0).toISOString(),
       }),
       workTask({
@@ -246,7 +335,7 @@ describe('sortUnifiedTasks', () => {
         status: 'in_progress',
         timerStartedAt: '2026-01-15T09:05:00.000Z',
         priority: 'high',
-        dateKey: DAY_ONE,
+        dateKey: TODAY,
         startTime: new Date(2026, 0, 15, 8, 30).toISOString(),
       }),
     ],
@@ -286,9 +375,17 @@ describe('sortUnifiedTasks', () => {
   it('time: earliest start time first across dates', () => {
     const extra = buildUnifiedTasks(
       [],
-      [educationTask({ id: 'edu-early', time: '07:45', dateKey: DAY_TWO })]
+      [
+        educationTask({
+          id: 'edu-early',
+          time: '07:45',
+          dateKey: NEXT_WEEK_DAY,
+        }),
+      ]
     )
-    const sorted = sortUnifiedTasks([...tasks, ...extra], 'time').map((task) => task.id)
+    const sorted = sortUnifiedTasks([...tasks, ...extra], 'time').map(
+      (task) => task.id
+    )
     expect(sorted[0]).toBe('edu-early')
   })
 })
@@ -296,8 +393,15 @@ describe('sortUnifiedTasks', () => {
 describe('summarizeUnifiedTasks', () => {
   it('counts total, completed and remaining across both sources', () => {
     const tasks = buildUnifiedTasks(
-      [workTask({ status: 'planned' }), workTask({ status: 'completed' }), workTask({ status: 'skipped' })],
-      [educationTask({ status: 'pending' }), educationTask({ status: 'in_progress' })]
+      [
+        workTask({ status: 'planned' }),
+        workTask({ status: 'completed' }),
+        workTask({ status: 'skipped' }),
+      ],
+      [
+        educationTask({ status: 'pending' }),
+        educationTask({ status: 'in_progress' }),
+      ]
     )
     expect(summarizeUnifiedTasks(tasks)).toEqual({
       total: 5,

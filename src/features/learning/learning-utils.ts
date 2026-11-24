@@ -49,8 +49,11 @@ export function summarizeTrack(
     minutes: trackLogs.reduce((sum, log) => sum + log.minutes, 0),
     sessions: trackLogs.length,
     itemCount: trackItems.length,
-    completedItems: trackItems.filter((item) => item.status === 'completed').length,
-    averageProgress: trackItems.length ? Math.round(progress / trackItems.length) : 0,
+    completedItems: trackItems.filter((item) => item.status === 'completed')
+      .length,
+    averageProgress: trackItems.length
+      ? Math.round(progress / trackItems.length)
+      : 0,
   }
 }
 

@@ -17,12 +17,36 @@ export interface OnlineNewsInput {
  * transparent keyword rules. Nothing is invented: every row comes from a
  * real feed of a real outlet.
  */
-export const DEFAULT_FEEDS: Array<{ url: string; source: string; pool: NewsCategory[] }> = [
-  { url: 'https://www.zoomit.ir/feed/', source: 'Zoomit', pool: ['ai', 'technology'] },
-  { url: 'https://www.irna.ir/rss', source: 'ایرنا', pool: ['politics', 'economy', 'sports'] },
-  { url: 'https://www.isna.ir/rss', source: 'ایسنا', pool: ['politics', 'economy', 'sports'] },
-  { url: 'https://www.mehrnews.com/rss', source: 'مهر', pool: ['politics', 'economy', 'sports'] },
-  { url: 'https://www.ettelaat.com/fa/rss', source: 'عتیق', pool: ['politics', 'economy'] },
+export const DEFAULT_FEEDS: Array<{
+  url: string
+  source: string
+  pool: NewsCategory[]
+}> = [
+  {
+    url: 'https://www.zoomit.ir/feed/',
+    source: 'Zoomit',
+    pool: ['ai', 'technology'],
+  },
+  {
+    url: 'https://www.irna.ir/rss',
+    source: 'ایرنا',
+    pool: ['politics', 'economy', 'sports'],
+  },
+  {
+    url: 'https://www.isna.ir/rss',
+    source: 'ایسنا',
+    pool: ['politics', 'economy', 'sports'],
+  },
+  {
+    url: 'https://www.mehrnews.com/rss',
+    source: 'مهر',
+    pool: ['politics', 'economy', 'sports'],
+  },
+  {
+    url: 'https://www.ettelaat.com/fa/rss',
+    source: 'عتیق',
+    pool: ['politics', 'economy'],
+  },
 ]
 
 /** Keyword rules that map a Persian headline to one of the product categories. */
@@ -161,7 +185,9 @@ function textOf(html: string): string {
 function dateOnly(value: string | undefined): string | undefined {
   if (!value) return undefined
   const parsed = new Date(value)
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : undefined
+  return Number.isFinite(parsed.getTime())
+    ? parsed.toISOString().slice(0, 10)
+    : undefined
 }
 
 interface ParsedFeedItem {
@@ -171,9 +197,14 @@ interface ParsedFeedItem {
   date?: string
 }
 
-function parseFeedXml(xml: string, fallbackSource: string): { source: string; items: ParsedFeedItem[] } {
+function parseFeedXml(
+  xml: string,
+  fallbackSource: string
+): { source: string; items: ParsedFeedItem[] } {
   const document = new DOMParser().parseFromString(xml, 'application/xml')
-  const feedTitle = document.querySelector('channel > title, feed > title')?.textContent?.trim()
+  const feedTitle = document
+    .querySelector('channel > title, feed > title')
+    ?.textContent?.trim()
   const entries = [...document.querySelectorAll('item, entry')]
   const items = entries
     .map((entry) => {
@@ -182,10 +213,17 @@ function parseFeedXml(xml: string, fallbackSource: string): { source: string; it
         entry.querySelector('link')?.textContent?.trim() ||
         entry.querySelector('link')?.getAttribute('href') ||
         ''
-      const rawSummary = entry.querySelector('description, summary, content')?.textContent ?? ''
+      const rawSummary =
+        entry.querySelector('description, summary, content')?.textContent ?? ''
       const date =
-        entry.querySelector('pubDate, updated, published')?.textContent ?? undefined
-      return { title, link: rawLink, summary: textOf(rawSummary).slice(0, 400), date }
+        entry.querySelector('pubDate, updated, published')?.textContent ??
+        undefined
+      return {
+        title,
+        link: rawLink,
+        summary: textOf(rawSummary).slice(0, 400),
+        date,
+      }
     })
     .filter((entry) => entry.title && entry.link)
   return { source: feedTitle || fallbackSource, items }
@@ -203,9 +241,15 @@ async function fetchViaRss2Json(
   const payload = (await response.json()) as {
     status?: string
     feed?: { title?: string }
-    items?: Array<{ title?: string; link?: string; description?: string; pubDate?: string }>
+    items?: Array<{
+      title?: string
+      link?: string
+      description?: string
+      pubDate?: string
+    }>
   }
-  if (payload.status !== 'ok') throw new Error('RSS bridge could not read this feed')
+  if (payload.status !== 'ok')
+    throw new Error('RSS bridge could not read this feed')
   return {
     source: payload.feed?.title?.trim() || new URL(feedUrl).hostname,
     items: (payload.items ?? [])
@@ -228,10 +272,13 @@ export async function readFeed(
     throw new Error('feed URL must use HTTP or HTTPS')
   }
   try {
-    const response = await fetch(parsed.toString(), { signal: AbortSignal.timeout(12_000) })
+    const response = await fetch(parsed.toString(), {
+      signal: AbortSignal.timeout(12_000),
+    })
     if (!response.ok) throw new Error(`feed returned ${response.status}`)
     const result = parseFeedXml(await response.text(), parsed.hostname)
-    if (result.items.length === 0) throw new Error('feed contains no readable items')
+    if (result.items.length === 0)
+      throw new Error('feed contains no readable items')
     return result
   } catch {
     return fetchViaRss2Json(feedUrl)

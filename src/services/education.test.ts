@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { toDateKey } from '@/lib/date-key'
 import { destroyDatabase, initializeOfflineStorage } from '@/services/db'
 import {
   deleteEducationReport,
@@ -26,7 +27,6 @@ import {
   saveEducationItem,
   updateEducationItem,
 } from '@/services/learning'
-import { toDateKey } from '@/lib/date-key'
 
 const REFERENCE = new Date(2026, 0, 15, 9, 0, 0)
 const T0 = REFERENCE.getTime()
@@ -38,7 +38,9 @@ async function freshDatabase(): Promise<void> {
   await initializeOfflineStorage(REFERENCE)
 }
 
-function taskInput(overrides: Partial<EducationTaskInput> = {}): EducationTaskInput {
+function taskInput(
+  overrides: Partial<EducationTaskInput> = {}
+): EducationTaskInput {
   return {
     track: 'masters',
     title: 'تمرین آمار',
@@ -167,7 +169,14 @@ describe('education tasks', () => {
     expect(task.actualSeconds).toBe(0)
 
     const edited = await saveEducationTask(
-      { ...taskInput({ title: 'تمرین فصل سوم', priority: 'urgent', time: '14:30' }), id: task.id },
+      {
+        ...taskInput({
+          title: 'تمرین فصل سوم',
+          priority: 'urgent',
+          time: '14:30',
+        }),
+        id: task.id,
+      },
       T0
     )
     expect(edited.id).toBe(task.id)
@@ -202,10 +211,18 @@ describe('education tasks', () => {
   })
 
   it('rejects a 12-hour or malformed time and an invalid date', async () => {
-    await expect(saveEducationTask(taskInput({ time: '9:00' }), T0)).rejects.toThrow()
-    await expect(saveEducationTask(taskInput({ time: '09:00 PM' }), T0)).rejects.toThrow()
-    await expect(saveEducationTask(taskInput({ dateKey: '1405/01/01' }), T0)).rejects.toThrow()
-    await expect(saveEducationTask(taskInput({ estimatedMinutes: 0 }), T0)).rejects.toThrow()
+    await expect(
+      saveEducationTask(taskInput({ time: '9:00' }), T0)
+    ).rejects.toThrow()
+    await expect(
+      saveEducationTask(taskInput({ time: '09:00 PM' }), T0)
+    ).rejects.toThrow()
+    await expect(
+      saveEducationTask(taskInput({ dateKey: '1405/01/01' }), T0)
+    ).rejects.toThrow()
+    await expect(
+      saveEducationTask(taskInput({ estimatedMinutes: 0 }), T0)
+    ).rejects.toThrow()
   })
 })
 
@@ -266,7 +283,9 @@ describe('education timer', () => {
       startEducationTaskTimer(second.id, T0 + 1_000),
     ])
 
-    const active = (await getEducationTasks()).filter((task) => task.timerStartedAt)
+    const active = (await getEducationTasks()).filter(
+      (task) => task.timerStartedAt
+    )
     expect(active).toHaveLength(1)
     expect(await getActiveEducationTask()).toBeDefined()
   })
@@ -316,7 +335,10 @@ describe('education timer', () => {
       timerStartedAt: start.toISOString(),
       status: 'in_progress' as const,
     }
-    const settled = settleEducationTask(task, new Date(2026, 0, 16, 0, 30, 0).getTime())
+    const settled = settleEducationTask(
+      task,
+      new Date(2026, 0, 16, 0, 30, 0).getTime()
+    )
 
     expect(settled.actualSeconds).toBe(5400)
     expect(settled.dailySeconds?.[DAY_ONE]).toBe(4200)
@@ -371,13 +393,21 @@ describe('education progress reports', () => {
 
     const history = await getEducationReportsByTask(task.id)
     expect(history).toHaveLength(2)
-    expect(history.map((report) => report.id).sort()).toEqual([first.id, second.id].sort())
+    expect(history.map((report) => report.id).sort()).toEqual(
+      [first.id, second.id].sort()
+    )
   })
 
   it('edits one report without changing the others or the snapshot', async () => {
     const task = await seededTask()
-    const first = await saveEducationReport({ taskId: task.id, summary: 'اول' }, T0)
-    const second = await saveEducationReport({ taskId: task.id, summary: 'دوم' }, T0 + 60_000)
+    const first = await saveEducationReport(
+      { taskId: task.id, summary: 'اول' },
+      T0
+    )
+    const second = await saveEducationReport(
+      { taskId: task.id, summary: 'دوم' },
+      T0 + 60_000
+    )
 
     const edited = await updateEducationReport(
       first.id,
@@ -391,7 +421,9 @@ describe('education progress reports', () => {
     expect(edited.durationSeconds).toBe(first.durationSeconds)
     expect(edited.taskTitle).toBe(first.taskTitle)
 
-    const untouched = (await getEducationReports()).find((report) => report.id === second.id)
+    const untouched = (await getEducationReports()).find(
+      (report) => report.id === second.id
+    )
     expect(untouched?.summary).toBe('دوم')
 
     await deleteEducationReport(second.id)
@@ -408,7 +440,10 @@ describe('education progress reports', () => {
       credits: 3,
     })
     const task = await seededTask(course.id)
-    const report = await saveEducationReport({ taskId: task.id, summary: 'کلاس اول' }, T0)
+    const report = await saveEducationReport(
+      { taskId: task.id, summary: 'کلاس اول' },
+      T0
+    )
 
     expect(report.courseId).toBe(course.id)
     expect(report.courseTitle).toBe('اقتصاد خرد')

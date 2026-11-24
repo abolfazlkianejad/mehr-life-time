@@ -25,13 +25,14 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as ClerkAuthenticatedRouteRouteImport } from './routes/clerk/_authenticated/route'
+import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as AuthenticatedEducationIndexRouteImport } from './routes/_authenticated/education/index'
-import { Route as AuthenticatedEnergyIndexRouteImport } from './routes/_authenticated/energy/index'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedFinanceIndexRouteImport } from './routes/_authenticated/finance/index'
-import { Route as AuthenticatedGoldenHourIndexRouteImport } from './routes/_authenticated/golden-hour/index'
+import { Route as AuthenticatedGoalsIndexRouteImport } from './routes/_authenticated/goals/index'
 import { Route as AuthenticatedGymIndexRouteImport } from './routes/_authenticated/gym/index'
+import { Route as AuthenticatedMorningRoutineIndexRouteImport } from './routes/_authenticated/morning-routine/index'
 import { Route as AuthenticatedNewsIndexRouteImport } from './routes/_authenticated/news/index'
 import { Route as AuthenticatedNutritionIndexRouteImport } from './routes/_authenticated/nutrition/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
@@ -42,9 +43,7 @@ import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_a
 import { Route as AuthenticatedSettingsDataRouteImport } from './routes/_authenticated/settings/data'
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
-import { Route as AuthenticatedSocialIndexRouteImport } from './routes/_authenticated/social/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
-import { Route as AuthenticatedTimelineIndexRouteImport } from './routes/_authenticated/timeline/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as ClerkauthSignInRouteImport } from './routes/clerk/(auth)/sign-in'
 import { Route as ClerkauthSignUpRouteImport } from './routes/clerk/(auth)/sign-up'
@@ -128,6 +127,12 @@ const ClerkAuthenticatedRouteRoute = ClerkAuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => ClerkRouteRoute,
 } as any)
+const AuthenticatedAnalyticsIndexRoute =
+  AuthenticatedAnalyticsIndexRouteImport.update({
+    id: '/analytics/',
+    path: '/analytics/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppsIndexRoute = AuthenticatedAppsIndexRouteImport.update({
   id: '/apps/',
   path: '/apps/',
@@ -137,12 +142,6 @@ const AuthenticatedEducationIndexRoute =
   AuthenticatedEducationIndexRouteImport.update({
     id: '/education/',
     path: '/education/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedEnergyIndexRoute =
-  AuthenticatedEnergyIndexRouteImport.update({
-    id: '/energy/',
-    path: '/energy/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedErrorsErrorRoute =
@@ -157,17 +156,22 @@ const AuthenticatedFinanceIndexRoute =
     path: '/finance/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedGoldenHourIndexRoute =
-  AuthenticatedGoldenHourIndexRouteImport.update({
-    id: '/golden-hour/',
-    path: '/golden-hour/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
+const AuthenticatedGoalsIndexRoute = AuthenticatedGoalsIndexRouteImport.update({
+  id: '/goals/',
+  path: '/goals/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedGymIndexRoute = AuthenticatedGymIndexRouteImport.update({
   id: '/gym/',
   path: '/gym/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMorningRoutineIndexRoute =
+  AuthenticatedMorningRoutineIndexRouteImport.update({
+    id: '/morning-routine/',
+    path: '/morning-routine/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNewsIndexRoute = AuthenticatedNewsIndexRouteImport.update({
   id: '/news/',
   path: '/news/',
@@ -227,23 +231,11 @@ const AuthenticatedSettingsNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedSocialIndexRoute =
-  AuthenticatedSocialIndexRouteImport.update({
-    id: '/social/',
-    path: '/social/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedTimelineIndexRoute =
-  AuthenticatedTimelineIndexRouteImport.update({
-    id: '/timeline/',
-    path: '/timeline/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -289,20 +281,19 @@ export interface FileRoutesByFullPath {
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/education/': typeof AuthenticatedEducationIndexRoute
-  '/energy/': typeof AuthenticatedEnergyIndexRoute
   '/finance/': typeof AuthenticatedFinanceIndexRoute
-  '/golden-hour/': typeof AuthenticatedGoldenHourIndexRoute
+  '/goals/': typeof AuthenticatedGoalsIndexRoute
   '/gym/': typeof AuthenticatedGymIndexRoute
+  '/morning-routine/': typeof AuthenticatedMorningRoutineIndexRoute
   '/news/': typeof AuthenticatedNewsIndexRoute
   '/nutrition/': typeof AuthenticatedNutritionIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/review/': typeof AuthenticatedReviewIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/social/': typeof AuthenticatedSocialIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
-  '/timeline/': typeof AuthenticatedTimelineIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -327,20 +318,19 @@ export interface FileRoutesByTo {
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/education': typeof AuthenticatedEducationIndexRoute
-  '/energy': typeof AuthenticatedEnergyIndexRoute
   '/finance': typeof AuthenticatedFinanceIndexRoute
-  '/golden-hour': typeof AuthenticatedGoldenHourIndexRoute
+  '/goals': typeof AuthenticatedGoalsIndexRoute
   '/gym': typeof AuthenticatedGymIndexRoute
+  '/morning-routine': typeof AuthenticatedMorningRoutineIndexRoute
   '/news': typeof AuthenticatedNewsIndexRoute
   '/nutrition': typeof AuthenticatedNutritionIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/review': typeof AuthenticatedReviewIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
-  '/social': typeof AuthenticatedSocialIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
-  '/timeline': typeof AuthenticatedTimelineIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRoutesById {
@@ -370,20 +360,19 @@ export interface FileRoutesById {
   '/clerk/(auth)/sign-in': typeof ClerkauthSignInRoute
   '/clerk/(auth)/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/_authenticated/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/education/': typeof AuthenticatedEducationIndexRoute
-  '/_authenticated/energy/': typeof AuthenticatedEnergyIndexRoute
   '/_authenticated/finance/': typeof AuthenticatedFinanceIndexRoute
-  '/_authenticated/golden-hour/': typeof AuthenticatedGoldenHourIndexRoute
+  '/_authenticated/goals/': typeof AuthenticatedGoalsIndexRoute
   '/_authenticated/gym/': typeof AuthenticatedGymIndexRoute
+  '/_authenticated/morning-routine/': typeof AuthenticatedMorningRoutineIndexRoute
   '/_authenticated/news/': typeof AuthenticatedNewsIndexRoute
   '/_authenticated/nutrition/': typeof AuthenticatedNutritionIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/review/': typeof AuthenticatedReviewIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/_authenticated/social/': typeof AuthenticatedSocialIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
-  '/_authenticated/timeline/': typeof AuthenticatedTimelineIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRouteTypes {
@@ -411,20 +400,19 @@ export interface FileRouteTypes {
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/analytics/'
     | '/apps/'
     | '/education/'
-    | '/energy/'
     | '/finance/'
-    | '/golden-hour/'
+    | '/goals/'
     | '/gym/'
+    | '/morning-routine/'
     | '/news/'
     | '/nutrition/'
     | '/projects/'
     | '/review/'
     | '/settings/'
-    | '/social/'
     | '/tasks/'
-    | '/timeline/'
     | '/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -449,20 +437,19 @@ export interface FileRouteTypes {
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/analytics'
     | '/apps'
     | '/education'
-    | '/energy'
     | '/finance'
-    | '/golden-hour'
+    | '/goals'
     | '/gym'
+    | '/morning-routine'
     | '/news'
     | '/nutrition'
     | '/projects'
     | '/review'
     | '/settings'
-    | '/social'
     | '/tasks'
-    | '/timeline'
     | '/users'
   id:
     | '__root__'
@@ -491,20 +478,19 @@ export interface FileRouteTypes {
     | '/clerk/(auth)/sign-in'
     | '/clerk/(auth)/sign-up'
     | '/clerk/_authenticated/user-management'
+    | '/_authenticated/analytics/'
     | '/_authenticated/apps/'
     | '/_authenticated/education/'
-    | '/_authenticated/energy/'
     | '/_authenticated/finance/'
-    | '/_authenticated/golden-hour/'
+    | '/_authenticated/goals/'
     | '/_authenticated/gym/'
+    | '/_authenticated/morning-routine/'
     | '/_authenticated/news/'
     | '/_authenticated/nutrition/'
     | '/_authenticated/projects/'
     | '/_authenticated/review/'
     | '/_authenticated/settings/'
-    | '/_authenticated/social/'
     | '/_authenticated/tasks/'
-    | '/_authenticated/timeline/'
     | '/_authenticated/users/'
   fileRoutesById: FileRoutesById
 }
@@ -637,6 +623,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClerkAuthenticatedRouteRouteImport
       parentRoute: typeof ClerkRouteRoute
     }
+    '/_authenticated/analytics/': {
+      id: '/_authenticated/analytics/'
+      path: '/analytics'
+      fullPath: '/analytics/'
+      preLoaderRoute: typeof AuthenticatedAnalyticsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/apps/': {
       id: '/_authenticated/apps/'
       path: '/apps'
@@ -649,13 +642,6 @@ declare module '@tanstack/react-router' {
       path: '/education'
       fullPath: '/education/'
       preLoaderRoute: typeof AuthenticatedEducationIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/energy/': {
-      id: '/_authenticated/energy/'
-      path: '/energy'
-      fullPath: '/energy/'
-      preLoaderRoute: typeof AuthenticatedEnergyIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/errors/$error': {
@@ -672,11 +658,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/golden-hour/': {
-      id: '/_authenticated/golden-hour/'
-      path: '/golden-hour'
-      fullPath: '/golden-hour/'
-      preLoaderRoute: typeof AuthenticatedGoldenHourIndexRouteImport
+    '/_authenticated/goals/': {
+      id: '/_authenticated/goals/'
+      path: '/goals'
+      fullPath: '/goals/'
+      preLoaderRoute: typeof AuthenticatedGoalsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/gym/': {
@@ -684,6 +670,13 @@ declare module '@tanstack/react-router' {
       path: '/gym'
       fullPath: '/gym/'
       preLoaderRoute: typeof AuthenticatedGymIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/morning-routine/': {
+      id: '/_authenticated/morning-routine/'
+      path: '/morning-routine'
+      fullPath: '/morning-routine/'
+      preLoaderRoute: typeof AuthenticatedMorningRoutineIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/news/': {
@@ -756,25 +749,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/social/': {
-      id: '/_authenticated/social/'
-      path: '/social'
-      fullPath: '/social/'
-      preLoaderRoute: typeof AuthenticatedSocialIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/tasks/': {
       id: '/_authenticated/tasks/'
       path: '/tasks'
       fullPath: '/tasks/'
       preLoaderRoute: typeof AuthenticatedTasksIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/timeline/': {
-      id: '/_authenticated/timeline/'
-      path: '/timeline'
-      fullPath: '/timeline/'
-      preLoaderRoute: typeof AuthenticatedTimelineIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/users/': {
@@ -837,19 +816,18 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedEducationIndexRoute: typeof AuthenticatedEducationIndexRoute
-  AuthenticatedEnergyIndexRoute: typeof AuthenticatedEnergyIndexRoute
   AuthenticatedFinanceIndexRoute: typeof AuthenticatedFinanceIndexRoute
-  AuthenticatedGoldenHourIndexRoute: typeof AuthenticatedGoldenHourIndexRoute
+  AuthenticatedGoalsIndexRoute: typeof AuthenticatedGoalsIndexRoute
   AuthenticatedGymIndexRoute: typeof AuthenticatedGymIndexRoute
+  AuthenticatedMorningRoutineIndexRoute: typeof AuthenticatedMorningRoutineIndexRoute
   AuthenticatedNewsIndexRoute: typeof AuthenticatedNewsIndexRoute
   AuthenticatedNutritionIndexRoute: typeof AuthenticatedNutritionIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedReviewIndexRoute: typeof AuthenticatedReviewIndexRoute
-  AuthenticatedSocialIndexRoute: typeof AuthenticatedSocialIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
-  AuthenticatedTimelineIndexRoute: typeof AuthenticatedTimelineIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
 }
 
@@ -857,19 +835,18 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedEducationIndexRoute: AuthenticatedEducationIndexRoute,
-  AuthenticatedEnergyIndexRoute: AuthenticatedEnergyIndexRoute,
   AuthenticatedFinanceIndexRoute: AuthenticatedFinanceIndexRoute,
-  AuthenticatedGoldenHourIndexRoute: AuthenticatedGoldenHourIndexRoute,
+  AuthenticatedGoalsIndexRoute: AuthenticatedGoalsIndexRoute,
   AuthenticatedGymIndexRoute: AuthenticatedGymIndexRoute,
+  AuthenticatedMorningRoutineIndexRoute: AuthenticatedMorningRoutineIndexRoute,
   AuthenticatedNewsIndexRoute: AuthenticatedNewsIndexRoute,
   AuthenticatedNutritionIndexRoute: AuthenticatedNutritionIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedReviewIndexRoute: AuthenticatedReviewIndexRoute,
-  AuthenticatedSocialIndexRoute: AuthenticatedSocialIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
-  AuthenticatedTimelineIndexRoute: AuthenticatedTimelineIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
 }
 

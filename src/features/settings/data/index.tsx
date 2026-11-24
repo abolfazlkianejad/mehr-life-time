@@ -10,8 +10,8 @@ import {
   Upload,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
 import { formatClockTime } from '@/lib/time'
+import { cn } from '@/lib/utils'
 import {
   clearAllData,
   countBackupRecords,

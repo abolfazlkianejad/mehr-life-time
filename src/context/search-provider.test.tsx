@@ -72,8 +72,12 @@ describe('SearchProvider and CommandMenu', () => {
     await expect.element(getByText('پوسته')).toBeInTheDocument()
     await expect.element(getByText('روشن')).toBeInTheDocument()
     await expect.element(getByText('تیره')).toBeInTheDocument()
-    await expect.element(getByText('سیستم', { exact: true })).toBeInTheDocument()
-    await expect.element(getByText('داشبورد', { exact: true })).toBeInTheDocument()
+    await expect
+      .element(getByText('سیستم', { exact: true }))
+      .toBeInTheDocument()
+    await expect
+      .element(getByText('داشبورد', { exact: true }))
+      .toBeInTheDocument()
   })
 
   it('does not show the dialog content when search is closed', async () => {
@@ -109,9 +113,11 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(screen.getByText('کارها', { exact: true }))
+    await userEvent.click(
+      screen.getByText('پروژه‌ها و تسک‌ها', { exact: true })
+    )
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/tasks' })
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/projects' })
     await expect
       .element(screen.getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .not.toBeInTheDocument()

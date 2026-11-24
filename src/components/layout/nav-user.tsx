@@ -1,5 +1,4 @@
 import { Link } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
 import {
   BadgeCheck,
   Bell,
@@ -7,6 +6,7 @@ import {
   LogOut,
   UserRound,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {

@@ -1,10 +1,11 @@
+import type { TaskPriority, TimelineBlockRecord } from '@/types/timeline'
+import { createId } from '@/lib/id'
 import {
   getDatabase,
   STORE_PROJECT_NOTES,
   STORE_PROJECTS,
   STORE_TIMELINE_BLOCKS,
 } from '@/services/db'
-import type { TaskPriority, TimelineBlockRecord } from '@/types/timeline'
 import {
   deleteRecords,
   getAllFromIndex,
@@ -13,7 +14,6 @@ import {
   promisifyRequest,
   putRecords,
 } from '@/services/idb'
-import { createId } from '@/lib/id'
 
 export const PROJECT_STATUSES = [
   'planned',
@@ -65,21 +65,27 @@ function assertDayKey(value: string | undefined, label: string): void {
 
 function buildProject(input: ProjectInput, base?: Project): Project {
   if (!input.title.trim()) throw new RangeError('project title is required')
-  if (!PROJECT_STATUSES.includes(input.status)) throw new RangeError('unknown project status')
-  if (!PROJECT_PRIORITIES.includes(input.priority)) throw new RangeError('unknown project priority')
+  if (!PROJECT_STATUSES.includes(input.status))
+    throw new RangeError('unknown project status')
+  if (!PROJECT_PRIORITIES.includes(input.priority))
+    throw new RangeError('unknown project priority')
   assertDayKey(input.startDate, 'start date')
   assertDayKey(input.endDate, 'end date')
   const now = new Date().toISOString()
   return {
     id: base?.id ?? input.id ?? createId('project'),
     title: input.title.trim(),
-    ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+    ...(input.description !== undefined
+      ? { description: input.description.trim() }
+      : {}),
     status: input.status,
     priority: input.priority,
     ...(input.startDate ? { startDate: input.startDate } : {}),
     ...(input.endDate ? { endDate: input.endDate } : {}),
     tags: [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))],
-    ...(input.repositoryUrl ? { repositoryUrl: input.repositoryUrl.trim() } : {}),
+    ...(input.repositoryUrl
+      ? { repositoryUrl: input.repositoryUrl.trim() }
+      : {}),
     createdAt: base?.createdAt ?? now,
     updatedAt: now,
   }
@@ -146,7 +152,8 @@ export async function deleteProject(id: string): Promise<void> {
     transaction.objectStore(STORE_PROJECT_NOTES).getAll()
   )
   for (const note of notes) {
-    if (note.projectId === id) transaction.objectStore(STORE_PROJECT_NOTES).delete(note.id)
+    if (note.projectId === id)
+      transaction.objectStore(STORE_PROJECT_NOTES).delete(note.id)
   }
   transaction.objectStore(STORE_PROJECTS).delete(id)
   await new Promise<void>((resolve, reject) => {
@@ -167,7 +174,11 @@ export async function getProjectTasks(
   )
   return blocks
     .filter((block) => block.projectId === projectId)
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.startTime.localeCompare(b.startTime))
+    .sort(
+      (a, b) =>
+        a.dateKey.localeCompare(b.dateKey) ||
+        a.startTime.localeCompare(b.startTime)
+    )
 }
 
 /** Progress notes attached to a project. */
@@ -212,5 +223,7 @@ export function isProjectPriority(value: unknown): value is ProjectPriority {
 
 /** Priority helper shared with the task form. */
 export function isTaskPriorityValue(value: unknown): value is TaskPriority {
-  return ['low', 'medium', 'high', 'urgent'].some((priority) => priority === value)
+  return ['low', 'medium', 'high', 'urgent'].some(
+    (priority) => priority === value
+  )
 }

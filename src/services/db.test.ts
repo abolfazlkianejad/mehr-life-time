@@ -1,7 +1,6 @@
 import { addDays } from 'date-fns'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { toDateKey } from '@/lib/date-key'
-import { deleteDatabase } from '@/services/idb'
 import {
   deleteWorkSession,
   completeWorkTask,
@@ -55,6 +54,7 @@ import {
   updateOpportunityRecord,
   deleteOpportunityRecord,
 } from '@/services/db'
+import { deleteDatabase } from '@/services/idb'
 import { buildSeedBundle } from '@/services/seed'
 
 const REFERENCE = new Date(2026, 0, 15, 9, 0, 0)
@@ -63,7 +63,10 @@ const TODAY = toDateKey(REFERENCE)
 async function freshDatabase(): Promise<void> {
   await destroyDatabase()
   await initializeOfflineStorage(REFERENCE)
-  await seedDatabase(buildSeedBundle(REFERENCE), { onlyIfEmpty: true, reference: REFERENCE })
+  await seedDatabase(buildSeedBundle(REFERENCE), {
+    onlyIfEmpty: true,
+    reference: REFERENCE,
+  })
 }
 
 describe('offline storage engine', () => {
@@ -97,11 +100,17 @@ describe('offline storage engine', () => {
   it('copies old prototype tasks without removing or assigning guessed schedule fields', async () => {
     const oldDb = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('mehr-life-time', 1)
-      request.onupgradeneeded = () => request.result.createObjectStore('tasks', { keyPath: 'id' })
+      request.onupgradeneeded = () =>
+        request.result.createObjectStore('tasks', { keyPath: 'id' })
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-    const oldTask = { id: 'legacy-1', title: 'Old task', createdAt: 1234, completedAt: 2345 }
+    const oldTask = {
+      id: 'legacy-1',
+      title: 'Old task',
+      createdAt: 1234,
+      completedAt: 2345,
+    }
     await new Promise<void>((resolve, reject) => {
       const transaction = oldDb.transaction('tasks', 'readwrite')
       transaction.objectStore('tasks').put(oldTask)
@@ -118,11 +127,16 @@ describe('offline storage engine', () => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-    await expect(new Promise<unknown>((resolve, reject) => {
-      const request = source.transaction('tasks', 'readonly').objectStore('tasks').get('legacy-1')
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })).resolves.toEqual(oldTask)
+    await expect(
+      new Promise<unknown>((resolve, reject) => {
+        const request = source
+          .transaction('tasks', 'readonly')
+          .objectStore('tasks')
+          .get('legacy-1')
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    ).resolves.toEqual(oldTask)
     source.close()
     await deleteDatabase('mehr-life-time')
   })
@@ -144,13 +158,21 @@ describe('offline storage engine', () => {
   })
 
   it('makes study achievements available across a selected date range', async () => {
-    const log = await saveStudyLog({ category: 'ml', minutes: 30, note: 'Reviewed attention mechanisms' })
+    const log = await saveStudyLog({
+      category: 'ml',
+      minutes: 30,
+      note: 'Reviewed attention mechanisms',
+    })
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-    await expect(getStudyLogsByRange(monthStart, monthEnd)).resolves.toContainEqual(log)
-    await expect(getStudyLogsByRange(addDays(REFERENCE, 40), addDays(REFERENCE, 45))).resolves.toEqual([])
+    await expect(
+      getStudyLogsByRange(monthStart, monthEnd)
+    ).resolves.toContainEqual(log)
+    await expect(
+      getStudyLogsByRange(addDays(REFERENCE, 40), addDays(REFERENCE, 45))
+    ).resolves.toEqual([])
   })
 
   it('stores, patches and summarizes a timeline block', async () => {
@@ -332,21 +354,56 @@ describe('offline storage engine', () => {
   })
 
   it('creates, edits, filters, and deletes finance records and persists the savings goal', async () => {
-    const created = await saveFinanceEntry({ type: 'income', amount: 1250000, date: '2026-01-15', title: 'Monthly salary', category: 'salary' })
-    await saveFinanceEntry({ type: 'expense', amount: 250000, date: '2026-01-16', title: 'Groceries', category: 'food' })
-    const updated = await saveFinanceEntry({ id: created.id, type: 'income', amount: 1300000, date: '2026-01-15', title: 'Salary', category: 'salary' })
+    const created = await saveFinanceEntry({
+      type: 'income',
+      amount: 1250000,
+      date: '2026-01-15',
+      title: 'Monthly salary',
+      category: 'salary',
+    })
+    await saveFinanceEntry({
+      type: 'expense',
+      amount: 250000,
+      date: '2026-01-16',
+      title: 'Groceries',
+      category: 'food',
+    })
+    const updated = await saveFinanceEntry({
+      id: created.id,
+      type: 'income',
+      amount: 1300000,
+      date: '2026-01-15',
+      title: 'Salary',
+      category: 'salary',
+    })
     expect(updated.createdAt).toBe(created.createdAt)
     expect(await getFinanceEntries('2026-01')).toHaveLength(2)
-    expect((await getFinanceEntries('2026-01', 'food')).map((entry) => entry.title)).toEqual(['Groceries'])
-    expect(await saveFinanceSettings(6000)).toEqual({ id: 'default', savingsGoalBasisPoints: 6000 })
-    expect(await getFinanceSettings()).toEqual({ id: 'default', savingsGoalBasisPoints: 6000 })
+    expect(
+      (await getFinanceEntries('2026-01', 'food')).map((entry) => entry.title)
+    ).toEqual(['Groceries'])
+    expect(await saveFinanceSettings(6000)).toEqual({
+      id: 'default',
+      savingsGoalBasisPoints: 6000,
+    })
+    expect(await getFinanceSettings()).toEqual({
+      id: 'default',
+      savingsGoalBasisPoints: 6000,
+    })
     await deleteFinanceEntry(created.id)
     expect(await getFinanceEntries('2026-01')).toHaveLength(1)
   })
 
   it('saves, reads, updates, and deletes local social drafts', async () => {
-    const draft = await saveSocialDraft({ platform: 'linkedin', achievementId: 'block-1', achievementTitle: 'Completed an ML study block', text: 'First draft' })
-    expect((await getSocialDrafts())[0]).toMatchObject({ id: draft.id, text: 'First draft' })
+    const draft = await saveSocialDraft({
+      platform: 'linkedin',
+      achievementId: 'block-1',
+      achievementTitle: 'Completed an ML study block',
+      text: 'First draft',
+    })
+    expect((await getSocialDrafts())[0]).toMatchObject({
+      id: draft.id,
+      text: 'First draft',
+    })
     const updated = await saveSocialDraft({ ...draft, text: 'Edited draft' })
     expect(updated.createdAt).toBe(draft.createdAt)
     expect((await getSocialDrafts())[0]?.text).toBe('Edited draft')
@@ -378,16 +435,29 @@ describe('offline storage engine', () => {
 
   it('stores manually entered opportunities, prevents duplicate URLs, and bookmarks locally', async () => {
     const item = await saveOpportunityRecord({
-      kind: 'freelance', platform: 'پونیشا', title: 'فورهیر: بهبود صفحهٔ محصول',
-      url: 'https://example.com/projects/123', skills: ['WordPress', 'WooCommerce'], budgetToman: 2500000,
+      kind: 'freelance',
+      platform: 'پونیشا',
+      title: 'فورهیر: بهبود صفحهٔ محصول',
+      url: 'https://example.com/projects/123',
+      skills: ['WordPress', 'WooCommerce'],
+      budgetToman: 2500000,
     })
-    await expect(getOpportunityRecords('freelance')).resolves.toMatchObject([{ id: item.id, title: item.title, bookmarked: false }])
-    await expect(saveOpportunityRecord({
-      kind: 'freelance', platform: 'پونیشا', title: 'Duplicate',
-      url: 'https://example.com/projects/123', skills: [],
-    })).rejects.toThrow()
+    await expect(getOpportunityRecords('freelance')).resolves.toMatchObject([
+      { id: item.id, title: item.title, bookmarked: false },
+    ])
+    await expect(
+      saveOpportunityRecord({
+        kind: 'freelance',
+        platform: 'پونیشا',
+        title: 'Duplicate',
+        url: 'https://example.com/projects/123',
+        skills: [],
+      })
+    ).rejects.toThrow()
     await updateOpportunityRecord(item.id, { bookmarked: true })
-    await expect(getOpportunityRecords()).resolves.toMatchObject([{ bookmarked: true }])
+    await expect(getOpportunityRecords()).resolves.toMatchObject([
+      { bookmarked: true },
+    ])
     await deleteOpportunityRecord(item.id)
     await expect(getOpportunityRecords()).resolves.toEqual([])
   })
@@ -402,20 +472,49 @@ describe('offline storage engine', () => {
   })
 
   it('persists finance entries, edits them, filters by category, and stores the savings target', async () => {
-    const income = await saveFinanceEntry({ type: 'income', amount: 12500000, date: '2026-01-15', title: 'Monthly salary', category: 'salary' })
-    await saveFinanceEntry({ type: 'expense', amount: 850000, date: '2026-01-16', title: 'Groceries', category: 'food' })
-    const updated = await saveFinanceEntry({ id: income.id, type: 'income', amount: 13000000, date: '2026-01-15', title: 'Salary', category: 'salary' })
+    const income = await saveFinanceEntry({
+      type: 'income',
+      amount: 12500000,
+      date: '2026-01-15',
+      title: 'Monthly salary',
+      category: 'salary',
+    })
+    await saveFinanceEntry({
+      type: 'expense',
+      amount: 850000,
+      date: '2026-01-16',
+      title: 'Groceries',
+      category: 'food',
+    })
+    const updated = await saveFinanceEntry({
+      id: income.id,
+      type: 'income',
+      amount: 13000000,
+      date: '2026-01-15',
+      title: 'Salary',
+      category: 'salary',
+    })
     expect(updated.createdAt).toBe(income.createdAt)
     expect(await getFinanceEntries('2026-01')).toHaveLength(2)
-    expect((await getFinanceEntries('2026-01', 'food')).map((row) => row.title)).toEqual(['Groceries'])
+    expect(
+      (await getFinanceEntries('2026-01', 'food')).map((row) => row.title)
+    ).toEqual(['Groceries'])
     await saveFinanceSettings(6000)
-    expect(await getFinanceSettings()).toEqual({ id: 'default', savingsGoalBasisPoints: 6000 })
+    expect(await getFinanceSettings()).toEqual({
+      id: 'default',
+      savingsGoalBasisPoints: 6000,
+    })
     await deleteFinanceEntry(income.id)
     expect(await getFinanceEntries('2026-01')).toHaveLength(1)
   })
 
   it('round-trips social drafts through local storage CRUD', async () => {
-    const draft = await saveSocialDraft({ platform: 'linkedin', achievementId: 'block:1', achievementTitle: 'Completed a study block', text: 'Draft one' })
+    const draft = await saveSocialDraft({
+      platform: 'linkedin',
+      achievementId: 'block:1',
+      achievementTitle: 'Completed a study block',
+      text: 'Draft one',
+    })
     expect((await getSocialDrafts())[0]?.text).toBe('Draft one')
     const edited = await saveSocialDraft({ ...draft, text: 'Edited locally' })
     expect(edited.createdAt).toBe(draft.createdAt)
@@ -425,14 +524,38 @@ describe('offline storage engine', () => {
   })
 
   it('protects lunch and prevents overlapping scheduled work tasks', async () => {
-    await expect(saveWorkTask({ title: 'Lunch conflict', startTime: new Date(2026,0,15,13,0), durationMinutes: 30, isCompanyWork: true })).rejects.toThrow(/lunch/i)
-    const task = await saveWorkTask({ title: 'Late task', startTime: new Date(2026,0,15,22,45), durationMinutes: 45, isCompanyWork: true })
-    await expect(saveWorkTask({ title: 'Overlap', startTime: new Date(2026,0,15,23,0), durationMinutes: 30, isCompanyWork: true })).rejects.toThrow(/overlaps/i)
+    await expect(
+      saveWorkTask({
+        title: 'Lunch conflict',
+        startTime: new Date(2026, 0, 15, 13, 0),
+        durationMinutes: 30,
+        isCompanyWork: true,
+      })
+    ).rejects.toThrow(/lunch/i)
+    const task = await saveWorkTask({
+      title: 'Late task',
+      startTime: new Date(2026, 0, 15, 22, 45),
+      durationMinutes: 45,
+      isCompanyWork: true,
+    })
+    await expect(
+      saveWorkTask({
+        title: 'Overlap',
+        startTime: new Date(2026, 0, 15, 23, 0),
+        durationMinutes: 30,
+        isCompanyWork: true,
+      })
+    ).rejects.toThrow(/overlaps/i)
     expect(task.status).toBe('planned')
   })
 
   it('persists timer pauses, resumes, completion, and task rollover', async () => {
-    const task = await saveWorkTask({ title: 'Tracked task', startTime: new Date(2026,0,15,22,45), durationMinutes: 45, isCompanyWork: false })
+    const task = await saveWorkTask({
+      title: 'Tracked task',
+      startTime: new Date(2026, 0, 15, 22, 45),
+      durationMinutes: 45,
+      isCompanyWork: false,
+    })
     const started = await startWorkTaskTimer(task.id)
     expect(started.timerStartedAt).toBeTruthy()
     await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -440,7 +563,9 @@ describe('offline storage engine', () => {
     expect(paused.status).toBe('paused')
     expect(paused.timerStartedAt).toBeUndefined()
     expect(paused.elapsedSeconds).toBeGreaterThanOrEqual(1)
-    const linkedInterval = (await getWorkSessionsByDate(new Date(), 'all')).find((session) => session.timelineBlockId === task.id)
+    const linkedInterval = (
+      await getWorkSessionsByDate(new Date(), 'all')
+    ).find((session) => session.timelineBlockId === task.id)
     expect(linkedInterval?.durationHours).toBeGreaterThan(0)
     expect(linkedInterval?.clientName).toBe(task.title)
     const rolled = await rolloverWorkTask(task.id, '2026-01-16')
@@ -452,7 +577,10 @@ describe('offline storage engine', () => {
     expect(stopped.status).toBe('planned')
     expect(stopped.elapsedSeconds).toBe(rolled.elapsedSeconds)
     await completeWorkTask(task.id)
-    await expect(getTimelineBlock(task.id)).resolves.toMatchObject({ status: 'completed', timerStartedAt: undefined })
+    await expect(getTimelineBlock(task.id)).resolves.toMatchObject({
+      status: 'completed',
+      timerStartedAt: undefined,
+    })
   })
 })
 
@@ -483,7 +611,10 @@ describe('persistent study timer and editable work tasks', () => {
       vi.useRealTimers()
     }
 
-    const log = await finishStudyTimer({ category: 'exam', note: 'Timed practice questions' })
+    const log = await finishStudyTimer({
+      category: 'exam',
+      note: 'Timed practice questions',
+    })
     expect(log?.minutes).toBe(3)
     expect(log?.note).toBe('Timed practice questions')
     await expect(getStudyTimer()).resolves.toBeUndefined()
@@ -499,7 +630,10 @@ describe('persistent study timer and editable work tasks', () => {
     })
     expect(task.priority).toBe('high')
 
-    const updated = await updateWorkTask(task.id, { title: 'Ship header v2', priority: 'urgent' })
+    const updated = await updateWorkTask(task.id, {
+      title: 'Ship header v2',
+      priority: 'urgent',
+    })
     expect(updated.title).toBe('Ship header v2')
     expect(updated.priority).toBe('urgent')
     expect(updated.elapsedSeconds).toBe(task.elapsedSeconds ?? 0)

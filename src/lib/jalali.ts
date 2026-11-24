@@ -51,7 +51,9 @@ export function toJalali(date: Date): JalaliDate {
   const parts = jalaliParts.formatToParts(date)
   const read = (type: Intl.DateTimeFormatPartTypes): number => {
     const part = parts.find((entry) => entry.type === type)
-    return part ? Number.parseInt(part.value.replace(/[^\d]/g, ''), 10) : Number.NaN
+    return part
+      ? Number.parseInt(part.value.replace(/[^\d]/g, ''), 10)
+      : Number.NaN
   }
   return { jy: read('year'), jm: read('month'), jd: read('day') }
 }
@@ -82,7 +84,9 @@ function monthStart(jy: number, jm: number): number {
   const cached = monthStartCache.get(key)
   if (cached !== undefined) return cached
 
-  const start = nowruz(jy) + [0, 31, 62, 93, 124, 155, 186, 216, 246, 276, 306, 336][jm - 1]! * DAY_MS
+  const start =
+    nowruz(jy) +
+    [0, 31, 62, 93, 124, 155, 186, 216, 246, 276, 306, 336][jm - 1]! * DAY_MS
   monthStartCache.set(key, start)
   return start
 }
@@ -116,7 +120,9 @@ export function dateKeyToJalali(dateKey: string): JalaliDate {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
   if (!match) throw new RangeError(`Invalid date key: ${dateKey}`)
   const [, year, month, day] = match
-  return toJalali(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))))
+  return toJalali(
+    new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+  )
 }
 
 /** `1405/08/21` style label with Persian digits. */
@@ -168,7 +174,9 @@ export function formatTime24Seconds(date: Date): string {
  * Returns `null` when the text is not a real, existing Jalali date.
  */
 export function parseJalaliInput(input: string): string | null {
-  const normalized = toEnglishDigits(input).trim().replace(/[.\-\s]/g, '/')
+  const normalized = toEnglishDigits(input)
+    .trim()
+    .replace(/[.\-\s]/g, '/')
   const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(normalized)
   if (!match) return null
   const jy = Number(match[1])
@@ -178,7 +186,8 @@ export function parseJalaliInput(input: string): string | null {
   if (jd > jalaliMonthLength(jy, jm)) return null
   const key = jalaliToDateKey(jy, jm, jd)
   const roundTrip = dateKeyToJalali(key)
-  if (roundTrip.jy !== jy || roundTrip.jm !== jm || roundTrip.jd !== jd) return null
+  if (roundTrip.jy !== jy || roundTrip.jm !== jm || roundTrip.jd !== jd)
+    return null
   return key
 }
 

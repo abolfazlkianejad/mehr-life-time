@@ -4,11 +4,11 @@
 
 Windows desktop app for personal life and work, with Persian/English, RTL, Jalali dates and 24-hour time. React runs inside Tauri v2 / WebView2. Installed use does not require Node.js or a development server.
 
-**Version: 1.0.1 · Target: Windows x64 (MSVC) · Installer: NSIS, current user**
+**Version: 1.0.7 · Target: Windows x64 (MSVC) · Installer: NSIS, current user**
 
-انتشار نسخهٔ 1.0.1 با تأیید مالک و با اعلام مشکلات شناخته‌شدهٔ زیر انجام می‌شود؛ این تأیید به معنی رفع همهٔ مشکلات نیست. نسخه روی Windows فعلی آزمایش شده است و برای macOS و Linux ساختی انجام نشده است.
+انتشار نسخهٔ 1.0.7 با تأیید مالک و با اعلام مشکلات شناخته‌شدهٔ زیر انجام می‌شود؛ این تأیید به معنی رفع همهٔ مشکلات نیست. نسخه روی Windows فعلی آزمایش شده است و برای macOS و Linux ساختی انجام نشده است.
 
-Version 1.0.1 publication is owner-authorized with the known limitations below; this authorization does not mean all issues are resolved. Tested on the current Windows machine. No macOS or Linux build has been made.
+Version 1.0.7 publication is owner-authorized with the known limitations below; this authorization does not mean all issues are resolved. Tested on the current Windows machine. No macOS or Linux build has been made.
 
 ## تصاویر واقعی / Actual installed-app screenshots
 
@@ -32,7 +32,7 @@ These screenshots show the installed app with test data, not a mockup or develop
 
 ## نصب و استفاده / Install and use
 
-1. فایل `Mehr Life OS_1.0.1_x64-setup.exe` را اجرا کنید؛ نصب برای کاربر فعلی است.
+1. فایل `Mehr Life OS_1.0.7_x64-setup.exe` را اجرا کنید؛ نصب برای کاربر فعلی است.
 2. از میانبر **Mehr Life OS** در Desktop یا Start Menu باز کنید.
 3. از **تنظیمات → داده‌ها و پشتیبان** خروجی بگیرید و فایل را در محل امن نگه دارید.
 4. برنامه را از دکمهٔ بستن پنجره ببندید؛ داده‌ها پس از اجرای مجدد باقی می‌مانند.
@@ -49,16 +49,16 @@ Run the installer, then open **Mehr Life OS** from Desktop or Start Menu. Export
 
 ### ارتقا و حذف نصب / Upgrade and uninstall
 
-پیش از ارتقا یا حذف نصب، خروجی JSON مستقل بگیرید و برنامه را ببندید. در حذف نصب، گزینهٔ **Delete the application data** را انتخاب نکنید؛ حذف خود برنامه به معنی حذف خودکار داده‌ها نیست. در نسخهٔ 1.0.1 انتخاب این گزینه یک تأیید دوم با پیش‌فرض **No** دارد.
+نسخهٔ 1.0.7 نصب موجود کاربر فعلی را در همان مسیر بهروزرسانی میکند و هیچ گزینه، چکباکس یا صفحهای برای حذف دادههای برنامه نمایش نمیدهد. IndexedDB، WebView2، `%LOCALAPPDATA%\com.mehrlifeos.desktop`، `%APPDATA%\mehr-life-planner` و تمام رکوردها حفظ میشوند. دستیار محلی قدیمی از برنامه حذف شده است، اما فایلهای پیکربندی آن پاک نمیشوند. پیش از نصب، خروجی JSON مستقل بگیرید و در صورت امکان برنامه را ببندید.
 
-Before upgrading or uninstalling, export an independent JSON backup and close the app. Leave **Delete the application data** unchecked. Version 1.0.1 asks for a second confirmation, defaulting to **No**, if data deletion is selected.
+Version 1.0.7 updates an existing current-user installation in place and shows no option, checkbox, or page for deleting application data. WebView2/IndexedDB, `%LOCALAPPDATA%\com.mehrlifeos.desktop`, `%APPDATA%\mehr-life-planner`, and all application records are preserved. The legacy local assistant has been removed from the runtime, but its existing configuration files are left untouched. Export an independent JSON backup first and close the app if possible.
 
-**هشدار ارتقا از 1.0.0:** مسیر GUI «حذف نسخهٔ قبلی پیش از نصب» می‌تواند uninstaller قدیمی 1.0.0 را اجرا کند که تأیید دوم را ندارد. داده‌ها را حذف نکنید. نصب silent از PowerShell روی نسخهٔ قبلی آزمایش شده و داده‌ها را حفظ کرده است.
+**یادآوری:** نسخهٔ 1.0.7 مسیر «حذف نسخهٔ قبلی پیش از نصب» را ندارد و uninstaller را در بهروزرسانی فراخوانی نمیکند.
 
-**1.0.0 upgrade warning:** GUI uninstall-before-install can run the old 1.0.0 uninstaller, which lacks the extra confirmation. Do not select data deletion. A silent upgrade from PowerShell was tested without data loss.
+**Note:** version 1.0.7 has no uninstall-before-install path and does not invoke the uninstaller during an update.
 
 ```powershell
-Start-Process -FilePath '.\Mehr Life OS_1.0.1_x64-setup.exe' -ArgumentList '/S' -Wait
+Start-Process -FilePath '.\Mehr Life OS_1.0.7_x64-setup.exe' -ArgumentList '/S' -Wait
 ```
 
 از ارسال مستقیم `/S` در Git Bash خودداری کنید؛ تبدیل مسیر MSYS می‌تواند آن را تغییر دهد و نصب را تعاملی کند.
@@ -67,7 +67,7 @@ Avoid passing a bare `/S` from Git Bash: MSYS path conversion can change the arg
 
 ## داده‌ها و حریم خصوصی / Data and privacy
 
-دیتابیس `mehr-life-os` از نوع IndexedDB است و نسخهٔ schema فعلی 11 است. دادهٔ نسخهٔ نصب‌شده در این محل نگهداری می‌شود:
+دیتابیس `mehr-life-os` از نوع IndexedDB است و نسخهٔ schema فعلی 14 است. دادهٔ نسخهٔ نصب‌شده در این محل نگهداری می‌شود:
 
 ```text
 %LOCALAPPDATA%\com.mehrlifeos.desktop\EBWebView\Default\IndexedDB\http_tauri.localhost_0.indexeddb.leveldb
@@ -103,9 +103,9 @@ Local notes/tasks, page rendering and IndexedDB persistence work offline. With e
 
 Build prerequisites: Node.js, Rust stable for `x86_64-pc-windows-msvc`, official Microsoft C++ Build Tools/Windows SDK, and WebView2. Tested tools: Node.js 24.22.1, Rust/Cargo 1.99.1.
 
-فایل‌های npm و pnpm lock هر دو در پروژه موجودند و هنوز یکسان‌سازی نشده‌اند؛ تصمیم حذف یا انتخاب نهایی یکی انجام نشده است. محیط نصب‌شدهٔ فعلی با فرمان‌های زیر بررسی شده، ولی نصب تمیز وابستگی‌ها روی ماشین دوم هنوز تأیید نشده است.
+مدیریت بستهٔ پروژه npm است و `package-lock.json` تنها lockfile معتبر میباشد. CI با `npm ci` و Node.js 24.22.1 وابستگیها را بهصورت قابلتکرار نصب میکند. نصب تمیز وابستگیها با موفقیت آزمایش شده است.
 
-Both npm and pnpm lockfiles remain and are not yet reconciled. No final package-manager choice or lockfile removal has been made. Existing installed dependencies were verified with these commands; a clean install on a second machine is not yet verified.
+npm is the package manager and `package-lock.json` is the only authoritative lockfile. CI installs dependencies reproducibly with `npm ci` on Node.js 24.22.1; a clean install was verified in an isolated directory.
 
 ```sh
 npm run dev
@@ -120,17 +120,17 @@ npm run desktop:build -- --target x86_64-pc-windows-msvc --bundles nsis
 ```
 
 ```text
-src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Mehr Life OS_1.0.1_x64-setup.exe
+src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Mehr Life OS_1.0.7_x64-setup.exe
 ```
 
 ## مشکلات شناخته‌شده و انتشار / Known limitations and publication
 
 - `target=_blank` / `window.open` در آزمون نصب‌شده پنجرهٔ تازه‌ای باز نکرد؛ بازکردن لینک‌های خارجی دوره و خبر هنوز باید اصلاح و آزمایش شود.
 - External new-window links did not open in the installed probe. Course/news external links need a targeted fix and real test.
-- lint: صفر خطا و ۸ هشدار؛ build: هشدار chunk بزرگ و هشدار محیط Vite.
-- Lint: zero errors, eight warnings; build: large-chunk and Vite environment warnings.
-- ممیزی npm یک advisory با شدت High در وابستگی غیرمستقیم `follow-redirects` نسخهٔ 1.16.1 گزارش کرده است که در این انتشار برطرف نشده؛ بررسی و رفع آن با lockfile نهایی همچنان لازم است. این advisory به رفتار redirect در Node.js مربوط است؛ بهره‌برداری در WebView2 اثبات نشده است.
-- npm audit reported one unresolved High advisory in transitive `follow-redirects` 1.16.1 in this release; review and remediation against the authoritative lockfile remain necessary. This advisory concerns Node.js redirect handling; exploitation in WebView2 is not demonstrated.
+- lint: صفر خطا و ۳ هشدار؛ build: هشدار chunk بزرگ و هشدار محیط Vite.
+- Lint: zero errors, three warnings; build: large-chunk and Vite environment warnings.
+- ممیزی npm در حال حاضر ۰ بحرانی، ۰ بالا، ۱۰ متوسط و ۰ پایین گزارش میدهد؛ همگی مربوط به ابزارهای توسعه (minimatch در زنجیره ESLint و پلاگین مرتبسازی Prettier) هستند، نه کد ارسالشده به کاربر.
+- npm audit currently reports 0 critical, 0 high, 10 moderate and 0 low; all are dev-tooling only (minimatch via ESLint and the Prettier import-sort plugin), not shipped application code.
 - فید خصوصی یا URL دارای رمز/token وارد نکنید؛ شکست درخواست مستقیم می‌تواند تمام URL را به سرویس واسط rss2json بفرستد. پاسخ فید محدودیت اندازهٔ صریح ندارد.
 - Do not enter private or credential/token-bearing feed URLs: a failed direct request can send the complete URL to rss2json. Feed response size is not explicitly capped.
 - اعتبارسنجی backup ساختار، store و کلیدها را بررسی می‌کند، نه schema کامل تمام فیلدها؛ فقط backup مورداعتماد خود را وارد کنید. XSS از این مسیر اثبات نشده است.

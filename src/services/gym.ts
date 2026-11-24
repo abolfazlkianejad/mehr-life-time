@@ -33,10 +33,14 @@ const MAX_LABEL_LENGTH = 100
 const MAX_REPS = 500
 const MAX_WEIGHT_KG = 1000
 const MAX_SET_NUMBER = 100
+const MAX_PLANNED_MINUTES = 600
+const MAX_TIMER_SECONDS = 24 * 60 * 60
 
 export interface GymPlan {
   weekday: GymWeekday
   title: string
+  /** Optional planned duration; legacy plans simply omit it. */
+  plannedMinutes?: number
   updatedAt: string
 }
 
@@ -61,6 +65,14 @@ export interface GymSession {
   status: GymSessionStatus
   startedAt: string
   completedAt?: string
+  /** Snapshot of the plan's optional duration when the session started. */
+  plannedMinutes?: number
+  /** ISO timestamp of the active interval; absent when paused or finished. */
+  timerStartedAt?: string
+  /** Settled seconds from earlier start/pause intervals. */
+  elapsedSeconds?: number
+  /** Final measured duration, persisted when the session is finished. */
+  actualSeconds?: number
   createdAt: string
   updatedAt: string
 }
@@ -129,6 +141,52 @@ function assertDateKey(value: string): string {
   return value
 }
 
+function assertPlannedMinutes(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined
+  if (!Number.isInteger(value) || value < 1 || value > MAX_PLANNED_MINUTES) {
+    throw new RangeError(
+      `plannedMinutes must be a whole number between 1 and ${MAX_PLANNED_MINUTES}`
+    )
+  }
+  return value
+}
+
+/** Tolerant reader for legacy or hand-edited records. */
+function safeSeconds(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(MAX_TIMER_SECONDS, Math.floor(value))
+    : 0
+}
+
+function parseTimerStart(value: string | undefined): number | undefined {
+  if (!value) return undefined
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+/**
+ * Actual elapsed seconds of a session. Paused intervals never count: only the
+ * settled value plus the currently open interval is included.
+ */
+export function gymElapsedSeconds(
+  session: GymSession,
+  nowMs = Date.now()
+): number {
+  const settled = safeSeconds(session.elapsedSeconds)
+  if (!session.timerStartedAt) return settled
+  const started = parseTimerStart(session.timerStartedAt)
+  if (started === undefined) return settled
+  const segment = Number.isFinite(nowMs)
+    ? Math.max(0, Math.floor((nowMs - started) / 1000))
+    : 0
+  return Math.min(MAX_TIMER_SECONDS, settled + segment)
+}
+
+/** True only when the session has a valid open timer interval. */
+export function isGymTimerRunning(session: GymSession): boolean {
+  return parseTimerStart(session.timerStartedAt) !== undefined
+}
+
 function sortByOrder(exercises: GymExercise[]): GymExercise[] {
   return [...exercises].sort(
     (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt)
@@ -155,15 +213,23 @@ export async function getGymPlan(
 
 export async function saveGymPlan(
   weekday: GymWeekday,
-  title: string
+  title: string,
+  plannedMinutes?: number
 ): Promise<GymPlan> {
   assertWeekday(weekday, 'weekday')
+  const validatedMinutes = assertPlannedMinutes(plannedMinutes)
+  const database = await getDatabase()
+  const existing = await getRecord<GymPlan>(database, STORE_GYM_PLANS, weekday)
   const plan: GymPlan = {
     weekday,
     title: assertLabel(title, 'title'),
+    ...(validatedMinutes !== undefined
+      ? { plannedMinutes: validatedMinutes }
+      : existing?.plannedMinutes !== undefined
+        ? { plannedMinutes: existing.plannedMinutes }
+        : {}),
     updatedAt: new Date().toISOString(),
   }
-  const database = await getDatabase()
   await putRecords(database, STORE_GYM_PLANS, [plan])
   return plan
 }
@@ -386,10 +452,13 @@ export async function getGymSession(
 
 export async function startGymSession(
   dateKey: string,
-  title: string
+  title: string,
+  plannedMinutes?: number,
+  nowMs = Date.now()
 ): Promise<GymSession> {
   const key = assertDateKey(dateKey)
-  const now = new Date().toISOString()
+  const validatedMinutes = assertPlannedMinutes(plannedMinutes)
+  const now = new Date(safeNow(nowMs)).toISOString()
   const session: GymSession = {
     id: createId('gymsession'),
     dateKey: key,
@@ -397,6 +466,9 @@ export async function startGymSession(
     title: assertLabel(title, 'title'),
     status: 'draft',
     startedAt: now,
+    ...(validatedMinutes !== undefined
+      ? { plannedMinutes: validatedMinutes }
+      : {}),
     createdAt: now,
     updatedAt: now,
   }
@@ -404,6 +476,255 @@ export async function startGymSession(
   await putRecords(database, STORE_GYM_SESSIONS, [session])
   return session
 }
+
+// ---------------------------------------------------------------------------
+// Session timers
+// ---------------------------------------------------------------------------
+
+function safeNow(nowMs: number): number {
+  return Number.isFinite(nowMs) ? nowMs : Date.now()
+}
+
+/** Settles an open interval and removes its timestamp, without losing history. */
+function settleTimer(
+  session: GymSession,
+  nowMs: number,
+  nowIso: string
+): GymSession {
+  const settled: GymSession = {
+    ...session,
+    elapsedSeconds: gymElapsedSeconds(session, nowMs),
+    updatedAt: nowIso,
+  }
+  delete settled.timerStartedAt
+  return settled
+}
+
+/** Only one gym timer may run at a time; other drafts are settled first. */
+async function pauseOtherGymTimers(
+  store: IDBObjectStore,
+  keepId: string,
+  nowMs: number,
+  nowIso: string
+): Promise<void> {
+  const sessions = await promisifyRequest<GymSession[]>(store.getAll())
+  for (const session of sessions) {
+    if (
+      session.id === keepId ||
+      session.status !== 'draft' ||
+      !isGymTimerRunning(session)
+    ) {
+      continue
+    }
+    store.put(settleTimer(session, nowMs, nowIso))
+  }
+}
+
+/**
+ * Starts (or resumes) one session's timer. Repeated calls while running are
+ * no-ops, so a double click can never create a second timer.
+ */
+export async function startGymSessionTimer(
+  id: string,
+  nowMs = Date.now()
+): Promise<GymSession> {
+  const now = safeNow(nowMs)
+  const nowIso = new Date(now).toISOString()
+  const database = await getDatabase()
+  const tx = database.transaction(STORE_GYM_SESSIONS, 'readwrite')
+  const complete = awaitTransaction(tx)
+  try {
+    const store = tx.objectStore(STORE_GYM_SESSIONS)
+    const session = await promisifyRequest<GymSession | undefined>(
+      store.get(id)
+    )
+    if (!session) throw new RangeError(`Gym session "${id}" does not exist`)
+    if (session.status === 'done') {
+      throw new RangeError('completed gym sessions cannot be changed')
+    }
+    if (isGymTimerRunning(session)) {
+      await complete
+      return session
+    }
+    await pauseOtherGymTimers(store, id, now, nowIso)
+    const started: GymSession = {
+      ...session,
+      timerStartedAt: nowIso,
+      updatedAt: nowIso,
+    }
+    store.put(started)
+    await complete
+    return started
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      // The transaction may already have finished; the original error wins.
+    }
+    await complete.catch(() => undefined)
+    throw error
+  }
+}
+
+/** Pauses a running timer; paused seconds are never added to the total. */
+export async function pauseGymSessionTimer(
+  id: string,
+  nowMs = Date.now()
+): Promise<GymSession> {
+  const now = safeNow(nowMs)
+  const nowIso = new Date(now).toISOString()
+  const database = await getDatabase()
+  const tx = database.transaction(STORE_GYM_SESSIONS, 'readwrite')
+  const complete = awaitTransaction(tx)
+  try {
+    const store = tx.objectStore(STORE_GYM_SESSIONS)
+    const session = await promisifyRequest<GymSession | undefined>(
+      store.get(id)
+    )
+    if (!session) throw new RangeError(`Gym session "${id}" does not exist`)
+    if (session.status === 'done' || !isGymTimerRunning(session)) {
+      await complete
+      return session
+    }
+    const paused = settleTimer(session, now, nowIso)
+    store.put(paused)
+    await complete
+    return paused
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      // The transaction may already have finished; the original error wins.
+    }
+    await complete.catch(() => undefined)
+    throw error
+  }
+}
+
+/**
+ * Stops the timer, saves the measured duration in the session history and
+ * moves the session to `done`. Repeating the call is a no-op.
+ */
+export async function finishGymSessionTimer(
+  id: string,
+  nowMs = Date.now()
+): Promise<GymSession> {
+  const now = safeNow(nowMs)
+  const nowIso = new Date(now).toISOString()
+  const database = await getDatabase()
+  const tx = database.transaction(STORE_GYM_SESSIONS, 'readwrite')
+  const complete = awaitTransaction(tx)
+  try {
+    const store = tx.objectStore(STORE_GYM_SESSIONS)
+    const session = await promisifyRequest<GymSession | undefined>(
+      store.get(id)
+    )
+    if (!session) throw new RangeError(`Gym session "${id}" does not exist`)
+    if (session.status === 'done') {
+      await complete
+      return session
+    }
+    const actualSeconds = gymElapsedSeconds(session, now)
+    const finished: GymSession = {
+      ...session,
+      status: 'done',
+      actualSeconds,
+      elapsedSeconds: actualSeconds,
+      completedAt: nowIso,
+      updatedAt: nowIso,
+    }
+    delete finished.timerStartedAt
+    store.put(finished)
+    await complete
+    return finished
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      // The transaction may already have finished; the original error wins.
+    }
+    await complete.catch(() => undefined)
+    throw error
+  }
+}
+
+/**
+ * Dashboard start action: reuse the day's draft session for the same plan
+ * instead of creating a duplicate, then start its timer in one write.
+ */
+export async function startPlannedGymSession(
+  dateKey: string,
+  title: string,
+  plannedMinutes?: number,
+  nowMs = Date.now()
+): Promise<GymSession> {
+  const key = assertDateKey(dateKey)
+  const cleanTitle = assertLabel(title, 'title')
+  const minutes = assertPlannedMinutes(plannedMinutes)
+  const now = safeNow(nowMs)
+  const nowIso = new Date(now).toISOString()
+  const database = await getDatabase()
+  const tx = database.transaction(STORE_GYM_SESSIONS, 'readwrite')
+  const complete = awaitTransaction(tx)
+  try {
+    const store = tx.objectStore(STORE_GYM_SESSIONS)
+    const sessions = await promisifyRequest<GymSession[]>(store.getAll())
+    const existing = sessions
+      .filter(
+        (session) =>
+          session.dateKey === key &&
+          session.status === 'draft' &&
+          session.title === cleanTitle
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+
+    await pauseOtherGymTimers(store, existing?.id ?? '', now, nowIso)
+
+    if (existing) {
+      if (isGymTimerRunning(existing)) {
+        await complete
+        return existing
+      }
+      const resumed: GymSession = {
+        ...(minutes !== undefined
+          ? { ...existing, plannedMinutes: minutes }
+          : existing),
+        timerStartedAt: nowIso,
+        updatedAt: nowIso,
+      }
+      store.put(resumed)
+      await complete
+      return resumed
+    }
+
+    const session: GymSession = {
+      id: createId('gymsession'),
+      dateKey: key,
+      weekday: weekdayOfDateKey(key),
+      title: cleanTitle,
+      status: 'draft',
+      startedAt: nowIso,
+      ...(minutes !== undefined ? { plannedMinutes: minutes } : {}),
+      timerStartedAt: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }
+    store.put(session)
+    await complete
+    return session
+  } catch (error) {
+    try {
+      tx.abort()
+    } catch {
+      // The transaction may already have finished; the original error wins.
+    }
+    await complete.catch(() => undefined)
+    throw error
+  }
+}
+
+/** Resume uses the same single-timer service path as start. */
+export const resumeGymSessionTimer = startGymSessionTimer
 
 async function assertSessionEditable(
   database: IDBDatabase,
@@ -451,13 +772,22 @@ export async function completeGymSession(id: string): Promise<GymSession> {
         'a gym session needs at least one set to be completed'
       )
     }
-    const now = new Date().toISOString()
+    const nowMs = Date.now()
+    const now = new Date(nowMs).toISOString()
+    const measuredSeconds =
+      session.timerStartedAt || session.elapsedSeconds !== undefined
+        ? gymElapsedSeconds(session, nowMs)
+        : undefined
     const completed: GymSession = {
       ...session,
       status: 'done',
       completedAt: now,
       updatedAt: now,
+      ...(measuredSeconds !== undefined
+        ? { actualSeconds: measuredSeconds, elapsedSeconds: measuredSeconds }
+        : {}),
     }
+    delete completed.timerStartedAt
     sessions.put(completed)
     await complete
     return completed

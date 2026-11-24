@@ -19,14 +19,14 @@ export interface ProjectProgress {
 
 /** Counts finished and remaining tasks of a project. */
 export function projectProgress(tasks: ProjectTaskLike[]): ProjectProgress {
-  const done = tasks.filter(
-    (task) => task.status === 'completed' || task.status === 'skipped'
-  ).length
+  // Only completed tasks count; a skipped task is not finished work.
+  const done = tasks.filter((task) => task.status === 'completed').length
   const total = tasks.length
   return {
     total,
     done,
     remaining: total - done,
+    // No linked task means 0%, never a division by zero.
     percent: total ? Math.round((done / total) * 100) : 0,
   }
 }

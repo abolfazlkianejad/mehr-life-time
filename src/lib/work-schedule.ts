@@ -1,6 +1,11 @@
 import type { TimelineBlockRecord } from '@/types/timeline'
 
-const ACTIVE_SCHEDULE_STATES = new Set(['planned', 'in_progress', 'paused', 'rolled_over'])
+const ACTIVE_SCHEDULE_STATES = new Set([
+  'planned',
+  'in_progress',
+  'paused',
+  'rolled_over',
+])
 
 export function intersectsLunch(start: Date, end: Date): boolean {
   const lunchStart = new Date(start)
@@ -16,9 +21,12 @@ export function findWorkTaskConflict(
 ): TimelineBlockRecord | undefined {
   const start = new Date(candidate.startTime).getTime()
   const end = new Date(candidate.endTime).getTime()
-  return records.find((record) =>
-    record.id !== candidate.id && ACTIVE_SCHEDULE_STATES.has(record.status) &&
-    start < new Date(record.endTime).getTime() && end > new Date(record.startTime).getTime()
+  return records.find(
+    (record) =>
+      record.id !== candidate.id &&
+      ACTIVE_SCHEDULE_STATES.has(record.status) &&
+      start < new Date(record.endTime).getTime() &&
+      end > new Date(record.startTime).getTime()
   )
 }
 
@@ -56,7 +64,8 @@ export function findNextFreeSlot(
   busy: BusyInterval[],
   options: NextSlotOptions = {}
 ): Date | null {
-  if (!Number.isFinite(desiredStart.getTime()) || durationMinutes < 1) return null
+  if (!Number.isFinite(desiredStart.getTime()) || durationMinutes < 1)
+    return null
 
   const horizonDays = options.horizonDays ?? 21
   const dayStartHour = options.dayStartHour ?? 8
@@ -67,8 +76,16 @@ export function findNextFreeSlot(
 
   const intervals = busy
     .filter((item) => !INACTIVE_SCHEDULE_STATES.has(item.status ?? 'planned'))
-    .map((item) => ({ start: Date.parse(item.startTime), end: Date.parse(item.endTime) }))
-    .filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end) && item.end > item.start)
+    .map((item) => ({
+      start: Date.parse(item.startTime),
+      end: Date.parse(item.endTime),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.start) &&
+        Number.isFinite(item.end) &&
+        item.end > item.start
+    )
 
   let candidate = new Date(Math.ceil(desiredStart.getTime() / stepMs) * stepMs)
 

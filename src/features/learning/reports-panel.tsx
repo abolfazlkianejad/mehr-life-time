@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Clock3, Pencil, RotateCcw, Search, Timer, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { LearningTrack } from '@/services/db'
+import {
+  deleteEducationReport,
+  updateEducationReport,
+  type EducationReport,
+} from '@/services/education'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,12 +18,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { JalaliDatePicker } from '@/components/jalali-date-picker'
-import type { LearningTrack } from '@/services/db'
-import {
-  deleteEducationReport,
-  updateEducationReport,
-  type EducationReport,
-} from '@/services/education'
 import {
   filterEducationReports,
   formatStudyDuration,
@@ -42,7 +42,11 @@ interface ReportsPanelProps {
 }
 
 /** Aggregated, filterable history of the progress reports of all three paths. */
-export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps) {
+export function ReportsPanel({
+  reports,
+  onChanged,
+  onError,
+}: ReportsPanelProps) {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const [filters, setFilters] = useState<EducationReportFilters>({
@@ -117,7 +121,9 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
               <Input
                 className='ps-8'
                 value={filters.query}
-                onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+                onChange={(event) =>
+                  setFilters({ ...filters, query: event.target.value })
+                }
                 aria-label={t('learning.reports.filters.search')}
                 placeholder={t('learning.reports.filters.searchPlaceholder')}
               />
@@ -126,9 +132,13 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.reports.filters.path')}
               value={filters.track}
-              onChange={(event) => changePath(event.target.value as 'all' | LearningTrack)}
+              onChange={(event) =>
+                changePath(event.target.value as 'all' | LearningTrack)
+              }
             >
-              <option value='all'>{t('learning.reports.filters.allPaths')}</option>
+              <option value='all'>
+                {t('learning.reports.filters.allPaths')}
+              </option>
               {TRACKS.map((track) => (
                 <option key={track} value={track}>
                   {t(`learning.tracks.${track}`)}
@@ -139,9 +149,13 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.reports.filters.course')}
               value={filters.courseId}
-              onChange={(event) => setFilters({ ...filters, courseId: event.target.value })}
+              onChange={(event) =>
+                setFilters({ ...filters, courseId: event.target.value })
+              }
             >
-              <option value='all'>{t('learning.reports.filters.allCourses')}</option>
+              <option value='all'>
+                {t('learning.reports.filters.allCourses')}
+              </option>
               {courseOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.title || t('learning.tasks.noCourse')}
@@ -165,11 +179,18 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
               aria-label={t('learning.reports.filters.sort')}
               value={filters.sort}
               onChange={(event) =>
-                setFilters({ ...filters, sort: event.target.value as EducationReportSort })
+                setFilters({
+                  ...filters,
+                  sort: event.target.value as EducationReportSort,
+                })
               }
             >
-              <option value='newest'>{t('learning.reports.filters.sortNewest')}</option>
-              <option value='oldest'>{t('learning.reports.filters.sortOldest')}</option>
+              <option value='newest'>
+                {t('learning.reports.filters.sortNewest')}
+              </option>
+              <option value='oldest'>
+                {t('learning.reports.filters.sortOldest')}
+              </option>
             </select>
             {hasFilters ? (
               <Button
@@ -209,13 +230,17 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
               <CardHeader className='pb-2'>
                 <div className='flex flex-wrap items-start justify-between gap-2'>
                   <div className='min-w-0'>
-                    <CardTitle className='text-base'>{report.taskTitle}</CardTitle>
+                    <CardTitle className='text-base'>
+                      {report.taskTitle}
+                    </CardTitle>
                     <div className='mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
                       <span className='inline-flex items-center gap-1'>
                         <Clock3 className='size-3.5' />
                         {reportTimestamp(report, language)}
                       </span>
-                      <Badge variant='outline'>{t(`learning.tracks.${report.track}`)}</Badge>
+                      <Badge variant='outline'>
+                        {t(`learning.tracks.${report.track}`)}
+                      </Badge>
                       <Badge variant='secondary'>
                         {report.courseTitle ?? t('learning.tasks.noCourse')}
                       </Badge>
@@ -223,7 +248,10 @@ export function ReportsPanel({ reports, onChanged, onError }: ReportsPanelProps)
                         {t('learning.reports.statusAtReport')}:{' '}
                         {t(`learning.taskStatuses.${report.taskStatus}`)}
                       </Badge>
-                      <Badge variant='secondary' className='font-mono tabular-nums'>
+                      <Badge
+                        variant='secondary'
+                        className='font-mono tabular-nums'
+                      >
                         <Timer className='me-1 size-3.5' />
                         {formatStudyDuration(report.durationSeconds)}
                       </Badge>

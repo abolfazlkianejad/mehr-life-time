@@ -2,6 +2,7 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { ClerkProvider } from '@clerk/react'
 import { ExternalLink, Key } from 'lucide-react'
+import { openExternal } from '@/lib/open-external'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -71,7 +72,12 @@ function MissingClerkPubKey() {
                 <a
                   href='https://go.clerk.com/GttUAaK'
                   target='_blank'
+                  rel='noreferrer'
                   className='underline decoration-dashed underline-offset-4 hover:decoration-solid'
+                  onClick={(event) => {
+                    event.preventDefault()
+                    openExternal('https://go.clerk.com/GttUAaK')
+                  }}
                 >
                   Clerk
                   <sup>

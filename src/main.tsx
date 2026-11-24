@@ -6,12 +6,16 @@ import {
   QueryClient,
   QueryClientProvider,
 } from '@tanstack/react-query'
-import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router'
+import {
+  RouterProvider,
+  createHashHistory,
+  createRouter,
+} from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { handleServerError } from '@/lib/handle-server-error'
-import { initializeOfflineStorage, runStartupRollover } from '@/services/db'
 import { registerServiceWorker } from '@/lib/register-service-worker'
+import { initializeOfflineStorage, runStartupRollover } from '@/services/db'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'

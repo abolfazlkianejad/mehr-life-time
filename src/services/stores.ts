@@ -43,3 +43,10 @@ export const STORE_GYM_PLANS = 'gymPlans'
 export const STORE_GYM_EXERCISES = 'gymExercises'
 export const STORE_GYM_SESSIONS = 'gymSessions'
 export const STORE_GYM_SESSION_SETS = 'gymSessionSets'
+// v13 store: busy/free windows declared by the user or the planner agent.
+export const STORE_PLANNER_AVAILABILITY = 'plannerAvailability'
+// v14 stores: daily/weekly goals and desktop alarm reminders. Both are
+// additive settings/reminders; historical activity stays in its own stores and
+// is never copied here.
+export const STORE_GOALS = 'goals'
+export const STORE_ALARMS = 'alarms'

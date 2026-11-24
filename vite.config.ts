@@ -16,12 +16,18 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Pre-bundle the collapsible primitive so browser tests and the app share
+  // one React instance instead of loading a late second copy mid-run.
+  optimizeDeps: {
+    include: ['@radix-ui/react-collapsible'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   test: {
+    include: ['src/**/*.test.{ts,tsx}'],
     silent: 'passed-only',
     unstubEnvs: true,
     browser: {

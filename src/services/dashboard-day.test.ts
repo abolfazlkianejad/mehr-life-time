@@ -15,7 +15,15 @@ import {
 const REFERENCE = new Date(2026, 0, 15, 9, 0, 0)
 
 function dayRecord(dateKey: string, note: string): DashboardDayRecord {
-  return { dateKey, wakeTime: '', breakfast: '', bagItems: [], commuteTime: '', note, updatedAt: '' }
+  return {
+    dateKey,
+    wakeTime: '',
+    breakfast: '',
+    bagItems: [],
+    commuteTime: '',
+    note,
+    updatedAt: '',
+  }
 }
 
 describe('dashboard quick note persistence', () => {
@@ -66,7 +74,9 @@ describe('dashboard quick note persistence', () => {
       saveDashboardNote('2026-01-15', 'abc'),
     ])
 
-    await expect(getDashboardDay('2026-01-15')).resolves.toMatchObject({ note: 'abc' })
+    await expect(getDashboardDay('2026-01-15')).resolves.toMatchObject({
+      note: 'abc',
+    })
   })
 
   it('finds the latest non-empty note from an earlier day', async () => {
@@ -82,7 +92,9 @@ describe('dashboard quick note persistence', () => {
       dateKey: '2026-01-12',
       note: 'Latest earlier note',
     })
-    await expect(getPreviousDashboardNote('2026-01-10')).resolves.toBeUndefined()
+    await expect(
+      getPreviousDashboardNote('2026-01-10')
+    ).resolves.toBeUndefined()
   })
 })
 
@@ -109,8 +121,13 @@ describe('startup rollover', () => {
       const moved = await first
       expect(moved.map((record) => record.id)).toEqual([task.id])
       const afterMove = await getTimelineBlock(task.id)
-      expect(afterMove).toMatchObject({ status: 'rolled_over', rolledOverFrom: '2026-01-16' })
-      expect(Date.parse(afterMove!.startTime)).toBeGreaterThan(new Date(2026, 0, 16, 11, 0, 0).getTime())
+      expect(afterMove).toMatchObject({
+        status: 'rolled_over',
+        rolledOverFrom: '2026-01-16',
+      })
+      expect(Date.parse(afterMove!.startTime)).toBeGreaterThan(
+        new Date(2026, 0, 16, 11, 0, 0).getTime()
+      )
 
       vi.setSystemTime(new Date(2026, 0, 16, 23, 0, 0))
       await expect(runStartupRollover()).resolves.toBe(moved)

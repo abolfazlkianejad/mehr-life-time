@@ -72,12 +72,29 @@ describe('education sorting and filtering', () => {
   it('sorts by higher priority, then nearer date, then earlier time by default', () => {
     const rows = [
       task({ id: 'low', priority: 'low', dateKey: TODAY, time: '08:00' }),
-      task({ id: 'urgent-late', priority: 'urgent', dateKey: TODAY, time: '18:00' }),
-      task({ id: 'urgent-early', priority: 'urgent', dateKey: TODAY, time: '09:00' }),
-      task({ id: 'urgent-tomorrow', priority: 'urgent', dateKey: '2026-11-13', time: '07:00' }),
+      task({
+        id: 'urgent-late',
+        priority: 'urgent',
+        dateKey: TODAY,
+        time: '18:00',
+      }),
+      task({
+        id: 'urgent-early',
+        priority: 'urgent',
+        dateKey: TODAY,
+        time: '09:00',
+      }),
+      task({
+        id: 'urgent-tomorrow',
+        priority: 'urgent',
+        dateKey: '2026-11-13',
+        time: '07:00',
+      }),
       task({ id: 'medium', priority: 'medium', dateKey: TODAY, time: '09:00' }),
     ]
-    expect(sortEducationTasks(rows, 'priority').map((entry) => entry.id)).toEqual([
+    expect(
+      sortEducationTasks(rows, 'priority').map((entry) => entry.id)
+    ).toEqual([
       'urgent-early',
       'urgent-late',
       'urgent-tomorrow',
@@ -92,13 +109,26 @@ describe('education sorting and filtering', () => {
       task({ id: 'a', dateKey: TODAY, time: '18:00' }),
       task({ id: 'c', dateKey: TODAY, time: '07:00' }),
     ]
-    expect(sortEducationTasks(rows, 'date').map((entry) => entry.id)).toEqual(['c', 'a', 'b'])
-    expect(sortEducationTasks(rows, 'time').map((entry) => entry.id)).toEqual(['c', 'b', 'a'])
+    expect(sortEducationTasks(rows, 'date').map((entry) => entry.id)).toEqual([
+      'c',
+      'a',
+      'b',
+    ])
+    expect(sortEducationTasks(rows, 'time').map((entry) => entry.id)).toEqual([
+      'c',
+      'b',
+      'a',
+    ])
   })
 
   it('filters by path, course, status and title, excluding completed from open', () => {
     const rows = [
-      task({ id: 'open-masters', title: 'Linear Algebra', track: 'masters', courseId: 'c1' }),
+      task({
+        id: 'open-masters',
+        title: 'Linear Algebra',
+        track: 'masters',
+        courseId: 'c1',
+      }),
       task({
         id: 'done-masters',
         title: 'Linear Algebra review',
@@ -106,7 +136,12 @@ describe('education sorting and filtering', () => {
         courseId: 'c1',
         status: 'completed',
       }),
-      task({ id: 'paused', title: 'Networks', track: 'university', status: 'paused' }),
+      task({
+        id: 'paused',
+        title: 'Networks',
+        track: 'university',
+        status: 'paused',
+      }),
       task({
         id: 'stale-running',
         title: 'Training video',
@@ -145,7 +180,10 @@ describe('education sorting and filtering', () => {
   it('treats a stored in-progress row without a timer as paused', () => {
     const stale = task({ status: 'in_progress' })
     expect(displayTaskStatus(stale)).toBe('paused')
-    const running = task({ status: 'in_progress', timerStartedAt: NOW.toISOString() })
+    const running = task({
+      status: 'in_progress',
+      timerStartedAt: NOW.toISOString(),
+    })
     expect(displayTaskStatus(running)).toBe('in_progress')
   })
 })
@@ -172,7 +210,11 @@ describe('education summaries', () => {
         completedAt: NOW.toISOString(),
         dailySeconds: { [TODAY]: 600 },
       }),
-      task({ id: 'paused-today', status: 'paused', dailySeconds: { [TODAY]: 300 } }),
+      task({
+        id: 'paused-today',
+        status: 'paused',
+        dailySeconds: { [TODAY]: 300 },
+      }),
       task({
         id: 'yesterday',
         dateKey: YESTERDAY,
@@ -202,13 +244,22 @@ describe('education summaries', () => {
     const course = summarizeCourse(
       [
         task({ id: 'c1', courseId: 'course-1', actualSeconds: 120 }),
-        task({ id: 'c2', courseId: 'course-1', actualSeconds: 30, status: 'completed' }),
+        task({
+          id: 'c2',
+          courseId: 'course-1',
+          actualSeconds: 30,
+          status: 'completed',
+        }),
         task({ id: 'other', courseId: 'course-2', actualSeconds: 999 }),
       ],
       'course-1',
       NOW_MS
     )
-    expect(course).toEqual({ taskCount: 2, completedTasks: 1, studiedSeconds: 150 })
+    expect(course).toEqual({
+      taskCount: 2,
+      completedTasks: 1,
+      studiedSeconds: 150,
+    })
   })
 
   it('formats durations in hours, minutes and seconds', () => {
@@ -221,7 +272,9 @@ describe('education summaries', () => {
     expect(formatEducationCreatedAt('')).toBe('—')
     expect(formatEducationCreatedAt('not-a-date')).toBe('—')
     expect(formatEducationCreatedAt(undefined)).toBe('—')
-    expect(formatEducationCreatedAt('2026-11-12T08:00:00.000Z')).toMatch(/[۰-۹]+/)
+    expect(formatEducationCreatedAt('2026-11-12T08:00:00.000Z')).toMatch(
+      /[۰-۹]+/
+    )
   })
 })
 
@@ -312,10 +365,14 @@ describe('study report filters', () => {
       query: '',
     }
     expect(
-      filterEducationReports(reports, { ...base, sort: 'oldest' }).map((entry) => entry.id)
+      filterEducationReports(reports, { ...base, sort: 'oldest' }).map(
+        (entry) => entry.id
+      )
     ).toEqual(['one', 'three', 'two'])
     expect(
-      filterEducationReports(reports, { ...base, sort: 'newest' }).map((entry) => entry.id)
+      filterEducationReports(reports, { ...base, sort: 'newest' }).map(
+        (entry) => entry.id
+      )
     ).toEqual(['two', 'three', 'one'])
     expect(reportCourseOptions(reports)).toEqual([
       { id: 'c1', title: 'Algebra' },

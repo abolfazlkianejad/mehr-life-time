@@ -1,19 +1,44 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  Archive,
+  Bookmark,
+  CloudDownload,
+  HardDrive,
+  LoaderCircle,
+  Newspaper,
+  Plus,
+  RotateCcw,
+  Trash2,
+  Wifi,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Archive, Bookmark, CloudDownload, HardDrive, LoaderCircle, Newspaper, Plus, RotateCcw, Trash2, Wifi } from 'lucide-react'
-import { Header } from '@/components/layout/header'
-import { HeaderActions } from '@/components/header-actions'
-import { Main } from '@/components/layout/main'
+import { formatJalaliDateKey } from '@/lib/jalali'
+import { openExternal } from '@/lib/open-external'
+import {
+  deleteNewsItem,
+  getNewsItems,
+  NEWS_CATEGORIES,
+  saveNewsItem,
+  updateNewsItem,
+  type NewsItem,
+} from '@/services/db'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { HeaderActions } from '@/components/header-actions'
 import { JalaliDatePicker } from '@/components/jalali-date-picker'
-import { deleteNewsItem, getNewsItems, NEWS_CATEGORIES, saveNewsItem, updateNewsItem, type NewsItem } from '@/services/db'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
 import { fetchOnlineNews, fetchPersianNews } from '@/features/news/feed'
-import { formatJalaliDateKey } from '@/lib/jalali'
 
 const categories = [...NEWS_CATEGORIES]
 
@@ -28,12 +53,15 @@ export function NewsRadarPage() {
   const [url, setUrl] = useState('')
   const [publishedAt, setPublishedAt] = useState('')
   const [error, setError] = useState('')
-  const [originFilter, setOriginFilter] = useState<'all' | 'local' | 'online'>('all')
+  const [originFilter, setOriginFilter] = useState<'all' | 'local' | 'online'>(
+    'all'
+  )
   const [feedUrl, setFeedUrl] = useState('')
   const [feedBusy, setFeedBusy] = useState(false)
   const [feedStatus, setFeedStatus] = useState('')
 
-  const reload = async () => setItems(await getNewsItems({ includeArchived: true }))
+  const reload = async () =>
+    setItems(await getNewsItems({ includeArchived: true }))
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- IndexedDB loaders update state after an async read
@@ -149,8 +177,15 @@ export function NewsRadarPage() {
           </CardHeader>
           <CardContent className='space-y-3'>
             <div className='flex flex-wrap gap-2'>
-              <Button disabled={feedBusy} onClick={() => void fetchDefaultFeeds()}>
-                {feedBusy ? <LoaderCircle className='me-2 size-4 animate-spin' /> : <CloudDownload className='me-2 size-4' />}
+              <Button
+                disabled={feedBusy}
+                onClick={() => void fetchDefaultFeeds()}
+              >
+                {feedBusy ? (
+                  <LoaderCircle className='me-2 size-4 animate-spin' />
+                ) : (
+                  <CloudDownload className='me-2 size-4' />
+                )}
                 {t('news.fetchPersian')}
               </Button>
             </div>
@@ -163,12 +198,22 @@ export function NewsRadarPage() {
                 placeholder={t('news.feedUrlPlaceholder')}
                 aria-label={t('news.feedUrl')}
               />
-              <Button variant='outline' disabled={feedBusy || !feedUrl.trim()} onClick={() => void fetchFeed()}>
+              <Button
+                variant='outline'
+                disabled={feedBusy || !feedUrl.trim()}
+                onClick={() => void fetchFeed()}
+              >
                 {t('news.fetchFeed')}
               </Button>
             </div>
-            {feedStatus ? <p role='status' className='text-sm text-muted-foreground'>{feedStatus}</p> : null}
-            <p className='text-xs text-muted-foreground'>{t('news.onlineDisclosure')}</p>
+            {feedStatus ? (
+              <p role='status' className='text-sm text-muted-foreground'>
+                {feedStatus}
+              </p>
+            ) : null}
+            <p className='text-xs text-muted-foreground'>
+              {t('news.onlineDisclosure')}
+            </p>
           </CardContent>
         </Card>
 
@@ -181,7 +226,10 @@ export function NewsRadarPage() {
             <CardDescription>{t('news.manualEntry')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className='grid gap-3 md:grid-cols-2' onSubmit={(event) => void add(event)}>
+            <form
+              className='grid gap-3 md:grid-cols-2'
+              onSubmit={(event) => void add(event)}
+            >
               <Input
                 required
                 value={title}
@@ -192,7 +240,9 @@ export function NewsRadarPage() {
                 aria-label={t('news.category')}
                 className='h-9 rounded-md border bg-background px-3 text-sm'
                 value={category}
-                onChange={(event) => setCategory(event.target.value as NewsItem['category'])}
+                onChange={(event) =>
+                  setCategory(event.target.value as NewsItem['category'])
+                }
               >
                 {categories.map((item) => (
                   <option key={item} value={item}>
@@ -224,38 +274,70 @@ export function NewsRadarPage() {
                 placeholder={t('news.summaryOptional')}
               />
               <Button type='submit'>{t('news.save')}</Button>
-              {error ? <p role='alert' className='self-center text-sm text-destructive'>{error}</p> : null}
+              {error ? (
+                <p
+                  role='alert'
+                  className='self-center text-sm text-destructive'
+                >
+                  {error}
+                </p>
+              ) : null}
             </form>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>{t(showArchived ? 'news.archive' : 'news.feed')}</CardTitle>
+            <CardTitle>
+              {t(showArchived ? 'news.archive' : 'news.feed')}
+            </CardTitle>
             <CardDescription>{t('news.categoryHint')}</CardDescription>
           </CardHeader>
           <CardContent className='space-y-3'>
-            <Tabs value={category} onValueChange={(value) => setCategory(value as NewsItem['category'])}>
+            <Tabs
+              value={category}
+              onValueChange={(value) =>
+                setCategory(value as NewsItem['category'])
+              }
+            >
               <TabsList className='grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4'>
                 {categories.map((item) => (
-                  <TabsTrigger key={item} value={item}>{t(`news.categories.${item}`)}</TabsTrigger>
+                  <TabsTrigger key={item} value={item}>
+                    {t(`news.categories.${item}`)}
+                  </TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>
             <div className='flex flex-wrap gap-2'>
-              <Button variant='outline' size='sm' onClick={() => setShowArchived(!showArchived)}>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setShowArchived(!showArchived)}
+              >
                 <Archive className='me-2 size-4' />
                 {t(showArchived ? 'news.showFeed' : 'news.showArchive')}
               </Button>
-              <Button variant={originFilter === 'all' ? 'secondary' : 'outline'} size='sm' onClick={() => setOriginFilter('all')}>
+              <Button
+                variant={originFilter === 'all' ? 'secondary' : 'outline'}
+                size='sm'
+                onClick={() => setOriginFilter('all')}
+              >
                 <Newspaper className='me-2 size-4' />
                 {t('news.origin.all')}
               </Button>
-              <Button variant={originFilter === 'local' ? 'secondary' : 'outline'} size='sm' onClick={() => setOriginFilter('local')}>
+              <Button
+                variant={originFilter === 'local' ? 'secondary' : 'outline'}
+                size='sm'
+                onClick={() => setOriginFilter('local')}
+              >
                 <HardDrive className='me-2 size-4' />
                 {t('news.origin.local')}
               </Button>
-              <Button variant={originFilter === 'online' ? 'secondary' : 'outline'} size='sm' onClick={() => setOriginFilter('online')}>
+              <Button
+                variant={originFilter === 'online' ? 'secondary' : 'outline'}
+                size='sm'
+                onClick={() => setOriginFilter('online')}
+              >
                 <Wifi className='me-2 size-4' />
                 {t('news.origin.online')}
               </Button>
@@ -266,17 +348,28 @@ export function NewsRadarPage() {
                   <div className='flex flex-wrap items-start justify-between gap-3'>
                     <div className='min-w-48 flex-1'>
                       <div className='mb-2 flex flex-wrap items-center gap-2'>
-                        <Badge variant='secondary'>{t(`news.categories.${item.category}`)}</Badge>
+                        <Badge variant='secondary'>
+                          {t(`news.categories.${item.category}`)}
+                        </Badge>
                         <Badge variant='outline' className='gap-1'>
-                          {item.origin === 'online' ? <Wifi className='size-3' /> : <HardDrive className='size-3' />}
+                          {item.origin === 'online' ? (
+                            <Wifi className='size-3' />
+                          ) : (
+                            <HardDrive className='size-3' />
+                          )}
                           {t(`news.origin.${item.origin}`)}
                         </Badge>
-                        {item.source ? <span className='text-xs text-muted-foreground'>{item.source}</span> : null}
+                        {item.source ? (
+                          <span className='text-xs text-muted-foreground'>
+                            {item.source}
+                          </span>
+                        ) : null}
                       </div>
                       <h3 className='font-semibold'>{item.title}</h3>
                       {item.publishedAt ? (
                         <p className='mt-1 text-xs text-muted-foreground'>
-                          {t('news.publishedAt')}: {formatJalaliDateKey(item.publishedAt)}
+                          {t('news.publishedAt')}:{' '}
+                          {formatJalaliDateKey(item.publishedAt)}
                         </p>
                       ) : null}
                       {item.url ? (
@@ -285,30 +378,48 @@ export function NewsRadarPage() {
                           href={item.url}
                           target='_blank'
                           rel='noreferrer'
+                          onClick={(event) => {
+                            event.preventDefault()
+                            openExternal(item.url ?? '')
+                          }}
                         >
                           {t('news.openSource')}
                         </a>
                       ) : null}
                       {item.summary ? (
-                        <p className='mt-2 whitespace-pre-wrap text-sm text-muted-foreground'>{item.summary}</p>
+                        <p className='mt-2 text-sm whitespace-pre-wrap text-muted-foreground'>
+                          {item.summary}
+                        </p>
                       ) : null}
                     </div>
                     <div className='flex gap-1'>
                       <Button
                         size='icon'
                         variant={item.bookmarked ? 'secondary' : 'ghost'}
-                        aria-label={t(item.bookmarked ? 'news.unbookmark' : 'news.bookmark')}
-                        onClick={() => void setFlag(item, { bookmarked: !item.bookmarked })}
+                        aria-label={t(
+                          item.bookmarked ? 'news.unbookmark' : 'news.bookmark'
+                        )}
+                        onClick={() =>
+                          void setFlag(item, { bookmarked: !item.bookmarked })
+                        }
                       >
                         <Bookmark className='size-4' />
                       </Button>
                       <Button
                         size='icon'
                         variant='ghost'
-                        aria-label={t(item.archived ? 'news.restore' : 'news.archiveAction')}
-                        onClick={() => void setFlag(item, { archived: !item.archived })}
+                        aria-label={t(
+                          item.archived ? 'news.restore' : 'news.archiveAction'
+                        )}
+                        onClick={() =>
+                          void setFlag(item, { archived: !item.archived })
+                        }
                       >
-                        {item.archived ? <RotateCcw className='size-4' /> : <Archive className='size-4' />}
+                        {item.archived ? (
+                          <RotateCcw className='size-4' />
+                        ) : (
+                          <Archive className='size-4' />
+                        )}
                       </Button>
                       <Button
                         size='icon'
@@ -316,7 +427,9 @@ export function NewsRadarPage() {
                         aria-label={t('news.delete')}
                         onClick={() =>
                           void deleteNewsItem(item.id).then(() =>
-                            setItems((all) => all.filter((row) => row.id !== item.id))
+                            setItems((all) =>
+                              all.filter((row) => row.id !== item.id)
+                            )
                           )
                         }
                       >
@@ -344,7 +457,9 @@ export function NewsRadarWidget() {
   const [rows, setRows] = useState<NewsItem[]>([])
 
   useEffect(() => {
-    void getNewsItems().then(setRows).catch(() => undefined)
+    void getNewsItems()
+      .then(setRows)
+      .catch(() => undefined)
   }, [])
 
   const newest = rows[0]
@@ -356,18 +471,25 @@ export function NewsRadarWidget() {
           <Newspaper className='size-5 text-sky-600' />
           {t('news.title')}
         </CardTitle>
-        <CardDescription>{t('news.widgetHint', { count: rows.length })}</CardDescription>
+        <CardDescription>
+          {t('news.widgetHint', { count: rows.length })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {newest ? (
           <>
-            <Badge variant='outline'>{t(`news.categories.${newest.category}`)}</Badge>
+            <Badge variant='outline'>
+              {t(`news.categories.${newest.category}`)}
+            </Badge>
             <p className='mt-2 text-sm font-medium'>{newest.title}</p>
           </>
         ) : (
           <p className='text-sm text-muted-foreground'>{t('news.emptyFeed')}</p>
         )}
-        <a className='mt-3 inline-block text-sm text-primary underline' href='/news'>
+        <a
+          className='mt-3 inline-block text-sm text-primary underline'
+          href='/news'
+        >
           {t('news.openRadar')}
         </a>
       </CardContent>

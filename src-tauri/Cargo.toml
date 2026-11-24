@@ -1,6 +1,6 @@
 [package]
 name = "mehr-life-os"
-version = "1.0.1"
+version = "1.0.7"
 description = "Mehr Life OS — offline-first personal life and work operating system"
 authors = ["Mehr Life OS"]
 edition = "2021"
@@ -16,7 +16,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 
 [profile.release]
 panic = "abort"

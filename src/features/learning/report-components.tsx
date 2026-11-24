@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Save, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import type { EducationReport } from '@/services/education'
+import { useTranslation } from 'react-i18next'
 import { formatJalaliDateKey } from '@/lib/jalali'
 import { formatClockTime } from '@/lib/time'
+import type { EducationReport } from '@/services/education'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 export interface ReportDraft {
   summary: string
@@ -73,7 +73,9 @@ export function ProgressReportForm({
           rows={2}
           aria-label={t('learning.reportForm.summary')}
           value={draft.summary}
-          onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
+          onChange={(event) =>
+            setDraft({ ...draft, summary: event.target.value })
+          }
           placeholder={t('learning.reportForm.summaryPlaceholder')}
         />
       </div>
@@ -86,7 +88,9 @@ export function ProgressReportForm({
             rows={2}
             aria-label={t('learning.reportForm.topics')}
             value={draft.topics}
-            onChange={(event) => setDraft({ ...draft, topics: event.target.value })}
+            onChange={(event) =>
+              setDraft({ ...draft, topics: event.target.value })
+            }
             placeholder={t('learning.reportForm.topicsPlaceholder')}
           />
         </div>
@@ -98,7 +102,9 @@ export function ProgressReportForm({
             rows={2}
             aria-label={t('learning.reportForm.exercises')}
             value={draft.exercises}
-            onChange={(event) => setDraft({ ...draft, exercises: event.target.value })}
+            onChange={(event) =>
+              setDraft({ ...draft, exercises: event.target.value })
+            }
             placeholder={t('learning.reportForm.exercisesPlaceholder')}
           />
         </div>
@@ -110,7 +116,9 @@ export function ProgressReportForm({
             rows={2}
             aria-label={t('learning.reportForm.problems')}
             value={draft.problems}
-            onChange={(event) => setDraft({ ...draft, problems: event.target.value })}
+            onChange={(event) =>
+              setDraft({ ...draft, problems: event.target.value })
+            }
             placeholder={t('learning.reportForm.problemsPlaceholder')}
           />
         </div>
@@ -122,13 +130,19 @@ export function ProgressReportForm({
             rows={2}
             aria-label={t('learning.reportForm.resume')}
             value={draft.resumePoint}
-            onChange={(event) => setDraft({ ...draft, resumePoint: event.target.value })}
+            onChange={(event) =>
+              setDraft({ ...draft, resumePoint: event.target.value })
+            }
             placeholder={t('learning.reportForm.resumePlaceholder')}
           />
         </div>
       </div>
       <div className='flex flex-wrap gap-2'>
-        <Button type='submit' size='sm' disabled={!draft.summary.trim() || submitting}>
+        <Button
+          type='submit'
+          size='sm'
+          disabled={!draft.summary.trim() || submitting}
+        >
           <Save className='me-2 size-4' />
           {submitLabel}
         </Button>
@@ -144,7 +158,10 @@ export function ProgressReportForm({
 }
 
 /** Jalali day plus 24-hour time of a report. */
-export function reportTimestamp(report: EducationReport, language: string): string {
+export function reportTimestamp(
+  report: EducationReport,
+  language: string
+): string {
   return `${formatJalaliDateKey(report.dateKey)} · ${formatClockTime(
     new Date(report.createdAt),
     language
@@ -155,10 +172,26 @@ export function reportTimestamp(report: EducationReport, language: string): stri
 export function ReportBody({ report }: { report: EducationReport }) {
   const { t } = useTranslation()
   const sections = [
-    { key: 'topics', label: t('learning.reportForm.topics'), value: report.topics },
-    { key: 'exercises', label: t('learning.reportForm.exercises'), value: report.exercises },
-    { key: 'problems', label: t('learning.reportForm.problems'), value: report.problems },
-    { key: 'resume', label: t('learning.reportForm.resume'), value: report.resumePoint },
+    {
+      key: 'topics',
+      label: t('learning.reportForm.topics'),
+      value: report.topics,
+    },
+    {
+      key: 'exercises',
+      label: t('learning.reportForm.exercises'),
+      value: report.exercises,
+    },
+    {
+      key: 'problems',
+      label: t('learning.reportForm.problems'),
+      value: report.problems,
+    },
+    {
+      key: 'resume',
+      label: t('learning.reportForm.resume'),
+      value: report.resumePoint,
+    },
   ].filter((section) => section.value)
   return (
     <div className='space-y-2 text-sm'>
@@ -167,7 +200,9 @@ export function ReportBody({ report }: { report: EducationReport }) {
         <dl className='grid gap-2 sm:grid-cols-2'>
           {sections.map((section) => (
             <div key={section.key} className='rounded-md bg-muted/40 p-2'>
-              <dt className='text-xs font-medium text-muted-foreground'>{section.label}</dt>
+              <dt className='text-xs font-medium text-muted-foreground'>
+                {section.label}
+              </dt>
               <dd className='whitespace-pre-wrap'>{section.value}</dd>
             </div>
           ))}

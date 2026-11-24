@@ -1,22 +1,56 @@
-import { describe, expect, it } from 'vitest'
 import type { TimelineBlockRecord } from '@/types/timeline'
 import type { WorkSessionRecord } from '@/types/work'
-import { calculateWorkTime, settleTimelineBlockSeconds, timelineBlockSeconds } from './work-time'
+import { describe, expect, it } from 'vitest'
+import {
+  calculateWorkTime,
+  settleTimelineBlockSeconds,
+  timelineBlockSeconds,
+} from './work-time'
 
 const NOW = Date.parse('2026-10-31T10:00:00.000Z')
 
-function block(id: string, company = true, elapsedSeconds = 120, timerStartedAt?: string): TimelineBlockRecord {
+function block(
+  id: string,
+  company = true,
+  elapsedSeconds = 120,
+  timerStartedAt?: string
+): TimelineBlockRecord {
   return {
-    id, title: id, category: 'work', startTime: '2026-10-31T09:00:00.000Z', endTime: '2026-10-31T10:00:00.000Z',
-    durationMinutes: 60, energyLevelRequired: 3, status: timerStartedAt ? 'in_progress' : 'paused', isConflictFree: true,
-    createdAt: '', updatedAt: '', dateKey: '2026-10-31', elapsedSeconds, timerStartedAt, isCompanyWork: company,
+    id,
+    title: id,
+    category: 'work',
+    startTime: '2026-10-31T09:00:00.000Z',
+    endTime: '2026-10-31T10:00:00.000Z',
+    durationMinutes: 60,
+    energyLevelRequired: 3,
+    status: timerStartedAt ? 'in_progress' : 'paused',
+    isConflictFree: true,
+    createdAt: '',
+    updatedAt: '',
+    dateKey: '2026-10-31',
+    elapsedSeconds,
+    timerStartedAt,
+    isCompanyWork: company,
   }
 }
 
-function session(id: string, durationHours: number, extra: Partial<WorkSessionRecord> = {}): WorkSessionRecord {
+function session(
+  id: string,
+  durationHours: number,
+  extra: Partial<WorkSessionRecord> = {}
+): WorkSessionRecord {
   return {
-    id, clientName: 'client', taskType: 'other', durationHours, date: '2026-10-31T09:00:00.000Z',
-    isCompanyWork: true, createdAt: '', updatedAt: '', dateKey: '2026-10-31', kind: 'company', ...extra,
+    id,
+    clientName: 'client',
+    taskType: 'other',
+    durationHours,
+    date: '2026-10-31T09:00:00.000Z',
+    isCompanyWork: true,
+    createdAt: '',
+    updatedAt: '',
+    dateKey: '2026-10-31',
+    kind: 'company',
+    ...extra,
   }
 }
 
@@ -26,11 +60,18 @@ describe('work time aggregation', () => {
   })
 
   it('counts an independent WorkSession', () => {
-    expect(calculateWorkTime([], [session('s', 1.5)], 'all', NOW).seconds).toBe(5400)
+    expect(calculateWorkTime([], [session('s', 1.5)], 'all', NOW).seconds).toBe(
+      5400
+    )
   })
 
   it('does not count a WorkSession linked to a TimelineBlock twice', () => {
-    const result = calculateWorkTime([block('a')], [session('s', 1, { timelineBlockId: 'a' })], 'all', NOW)
+    const result = calculateWorkTime(
+      [block('a')],
+      [session('s', 1, { timelineBlockId: 'a' })],
+      'all',
+      NOW
+    )
     expect(result.seconds).toBe(120)
     expect(result.independentSessionSeconds).toBe(0)
   })
@@ -43,7 +84,9 @@ describe('work time aggregation', () => {
   })
 
   it('adds independent sessions beside TimelineBlocks', () => {
-    expect(calculateWorkTime([block('a')], [session('s', 1)], 'all', NOW).seconds).toBe(3720)
+    expect(
+      calculateWorkTime([block('a')], [session('s', 1)], 'all', NOW).seconds
+    ).toBe(3720)
   })
 
   it('counts the active timer through the supplied current time', () => {
@@ -53,12 +96,17 @@ describe('work time aggregation', () => {
 
   it('keeps old unlinked WorkSessions as independent time', () => {
     const old = session('legacy', 2)
-    expect(calculateWorkTime([block('a')], [old], 'all', NOW).seconds).toBe(7320)
+    expect(calculateWorkTime([block('a')], [old], 'all', NOW).seconds).toBe(
+      7320
+    )
   })
 
   it('filters company work while retaining freelance work in all mode', () => {
     const rows = [block('company', true, 120), block('freelance', false, 300)]
-    const sessions = [session('company-session', 0.5), session('free-session', 1, { isCompanyWork: false, kind: 'freelance' })]
+    const sessions = [
+      session('company-session', 0.5),
+      session('free-session', 1, { isCompanyWork: false, kind: 'freelance' }),
+    ]
     expect(calculateWorkTime(rows, sessions, 'company', NOW).seconds).toBe(1920)
     expect(calculateWorkTime(rows, sessions, 'all', NOW).seconds).toBe(5820)
   })
@@ -69,7 +117,14 @@ describe('work time aggregation', () => {
   })
 
   it('clamps invalid or negative time instead of producing NaN', () => {
-    expect(timelineBlockSeconds({ elapsedSeconds: -10, timerStartedAt: 'not-a-date' }, NOW)).toBe(0)
-    expect(calculateWorkTime([], [session('bad', Number.NaN)], 'all', NOW).seconds).toBe(0)
+    expect(
+      timelineBlockSeconds(
+        { elapsedSeconds: -10, timerStartedAt: 'not-a-date' },
+        NOW
+      )
+    ).toBe(0)
+    expect(
+      calculateWorkTime([], [session('bad', Number.NaN)], 'all', NOW).seconds
+    ).toBe(0)
   })
 })

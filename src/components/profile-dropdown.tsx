@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -13,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SignOutDialog } from '@/components/sign-out-dialog'
-import { UserRound } from 'lucide-react'
 
 export function ProfileDropdown() {
   const { t } = useTranslation()

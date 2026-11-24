@@ -1,8 +1,12 @@
-import { displayTaskStatus } from '@/features/learning/education-utils'
+import type {
+  TaskPriority,
+  TimelineBlockRecord,
+  TimelineCategory,
+} from '@/types/timeline'
 import { clockTimeFromDate } from '@/lib/time'
 import type { LearningTrack } from '@/services/db'
 import type { EducationTask } from '@/services/education'
-import type { TaskPriority, TimelineBlockRecord, TimelineCategory } from '@/types/timeline'
+import { displayTaskStatus } from '@/features/learning/education-utils'
 
 /**
  * Read-only aggregation of the two task modules for the dashboard.
@@ -88,13 +92,17 @@ export function buildUnifiedTasks(
       priority: task.priority ?? 'medium',
       bucket: workBucket(task),
       status:
-        task.status === 'in_progress' && !task.timerStartedAt ? 'paused' : task.status,
+        task.status === 'in_progress' && !task.timerStartedAt
+          ? 'paused'
+          : task.status,
       estimatedMinutes: task.durationMinutes,
       category: task.category,
       isCompanyWork: task.isCompanyWork,
       ...(task.projectId ? { projectId: task.projectId } : {}),
       ...(task.notes ? { notes: task.notes } : {}),
-      ...(task.elapsedSeconds !== undefined ? { elapsedSeconds: task.elapsedSeconds } : {}),
+      ...(task.elapsedSeconds !== undefined
+        ? { elapsedSeconds: task.elapsedSeconds }
+        : {}),
       ...(task.timerStartedAt ? { timerStartedAt: task.timerStartedAt } : {}),
       createdAt: task.createdAt,
     })
@@ -124,23 +132,74 @@ export function buildUnifiedTasks(
 
 export interface UnifiedTaskFilters {
   source: 'all' | UnifiedTaskSource
-  status: 'all' | UnifiedTaskBucket
-  range: 'all' | 'past' | 'today' | 'upcoming'
+  /**
+   * Exact local day (`yyyy-MM-dd`) the dashboard is showing. An empty value
+   * disables the date restriction; the UI always passes a real day key.
+   */
+  dateKey: string
+  status: UnifiedStatusFilter
+  priority: 'all' | TaskPriority
+  /** Real project id from the work-task store; `all` disables the filter. */
+  projectId: 'all' | string
   query: string
 }
 
+export const UNIFIED_STATUS_FILTERS = [
+  'all',
+  'done',
+  'open',
+  'active',
+  'paused',
+] as const
+
+export type UnifiedStatusFilter = (typeof UNIFIED_STATUS_FILTERS)[number]
+
+export const DEFAULT_UNIFIED_TASK_FILTERS: UnifiedTaskFilters = {
+  source: 'all',
+  dateKey: '',
+  status: 'all',
+  priority: 'all',
+  projectId: 'all',
+  query: '',
+}
+
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+/** Shape check for a stored `yyyy-MM-dd` day key. */
+export function isDayKey(value: unknown): value is string {
+  return typeof value === 'string' && DAY_KEY_PATTERN.test(value)
+}
+
+/** Status of a row as one of the five user-facing filter buckets. */
+export function matchesStatusFilter(
+  task: UnifiedTask,
+  status: UnifiedStatusFilter
+): boolean {
+  if (status === 'all') return true
+  if (status === 'done') return task.bucket === 'done'
+  if (status === 'paused') return task.status === 'paused'
+  if (status === 'open') return task.bucket === 'open'
+  return task.bucket === 'active' && task.status !== 'paused'
+}
+
+/**
+ * Applies every active filter. The day key is compared as the exact stored
+ * string, so a selected day never leaks tasks from neighbouring days.
+ */
 export function filterUnifiedTasks(
   tasks: UnifiedTask[],
-  filters: UnifiedTaskFilters,
-  todayKey: string
+  filters: UnifiedTaskFilters
 ): UnifiedTask[] {
   const query = filters.query.trim().toLocaleLowerCase()
+  const restrictDay = isDayKey(filters.dateKey)
   return tasks.filter((task) => {
+    if (restrictDay && task.dateKey !== filters.dateKey) return false
     if (filters.source !== 'all' && task.source !== filters.source) return false
-    if (filters.status !== 'all' && task.bucket !== filters.status) return false
-    if (filters.range === 'past' && task.dateKey >= todayKey) return false
-    if (filters.range === 'today' && task.dateKey !== todayKey) return false
-    if (filters.range === 'upcoming' && task.dateKey <= todayKey) return false
+    if (!matchesStatusFilter(task, filters.status)) return false
+    if (filters.priority !== 'all' && task.priority !== filters.priority)
+      return false
+    if (filters.projectId !== 'all' && task.projectId !== filters.projectId)
+      return false
     if (query && !task.title.toLocaleLowerCase().includes(query)) return false
     return true
   })

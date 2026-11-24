@@ -8,6 +8,7 @@ import {
 } from '@/services/db'
 import {
   completeGymSession,
+  finishGymSessionTimer,
   deleteGymExercise,
   deleteGymPlan,
   deleteGymSession,
@@ -21,11 +22,16 @@ import {
   getGymSessions,
   getGymSessionsByDate,
   getLastGymExercisePerformance,
+  gymElapsedSeconds,
+  isGymTimerRunning,
   moveGymExercise,
+  pauseGymSessionTimer,
   saveGymExercise,
   saveGymPlan,
   saveGymSessionSet,
   startGymSession,
+  startGymSessionTimer,
+  startPlannedGymSession,
   updateGymExerciseName,
   updateGymSessionSet,
 } from '@/services/gym'
@@ -352,6 +358,144 @@ describe('gym sessions', () => {
 
     expect(await getGymSessions()).toHaveLength(0)
     expect(await getGymSessionSets(sessionId)).toHaveLength(0)
+  })
+})
+
+describe('gym session timer', () => {
+  beforeEach(freshDatabase)
+
+  const T0 = Date.parse('2026-01-15T09:00:00.000Z')
+
+  it('records elapsed time across pause and resume without counting paused time', async () => {
+    const session = await startGymSession(THURSDAY, 'سینه', 45, T0)
+    const started = await startGymSessionTimer(session.id, T0)
+    expect(isGymTimerRunning(started)).toBe(true)
+    expect(gymElapsedSeconds(started, T0 + 90_000)).toBe(90)
+
+    // A repeated start is a no-op, so a double click cannot add a second timer.
+    const repeated = await startGymSessionTimer(session.id, T0 + 90_000)
+    expect(repeated.timerStartedAt).toBe(started.timerStartedAt)
+    expect(isGymTimerRunning(repeated)).toBe(true)
+
+    const paused = await pauseGymSessionTimer(session.id, T0 + 120_000)
+    expect(paused.elapsedSeconds).toBe(120)
+    expect(paused.timerStartedAt).toBeUndefined()
+    expect(gymElapsedSeconds(paused, T0 + 600_000)).toBe(120)
+
+    const resumed = await startGymSessionTimer(session.id, T0 + 600_000)
+    expect(isGymTimerRunning(resumed)).toBe(true)
+    expect(gymElapsedSeconds(resumed, T0 + 630_000)).toBe(150)
+
+    const finished = await finishGymSessionTimer(session.id, T0 + 630_000)
+    expect(finished.status).toBe('done')
+    expect(finished.actualSeconds).toBe(150)
+    expect(finished.timerStartedAt).toBeUndefined()
+
+    const stored = (await getGymSessions())[0]!
+    expect(stored.actualSeconds).toBe(150)
+    // Finishing twice never changes the saved duration.
+    await expect(
+      finishGymSessionTimer(session.id, T0 + 900_000)
+    ).resolves.toMatchObject({ actualSeconds: 150, status: 'done' })
+  })
+
+  it('restores a running timer after a reopen and saves the duration once', async () => {
+    const session = await startPlannedGymSession(THURSDAY, 'Timer plan', 45, T0)
+    const storedSession = async () =>
+      (await getGymSessions()).find((entry) => entry.id === session.id)!
+
+    // The service reads IndexedDB on every call, so a fresh read models a
+    // desktop close/reopen without touching any real history.
+    let reopened = await storedSession()
+    expect(isGymTimerRunning(reopened)).toBe(true)
+    expect(gymElapsedSeconds(reopened, T0 + 30_000)).toBe(30)
+
+    // Repeating the dashboard start must neither duplicate the session nor
+    // restart the already running timer.
+    const repeated = await startPlannedGymSession(
+      THURSDAY,
+      'Timer plan',
+      45,
+      T0 + 45_000
+    )
+    expect(repeated.id).toBe(session.id)
+    expect(repeated.timerStartedAt).toBe(session.timerStartedAt)
+    expect(await getGymSessions()).toHaveLength(1)
+
+    const paused = await pauseGymSessionTimer(session.id, T0 + 60_000)
+    expect(paused.elapsedSeconds).toBe(60)
+    expect(isGymTimerRunning(paused)).toBe(false)
+    reopened = await storedSession()
+    expect(gymElapsedSeconds(reopened, T0 + 300_000)).toBe(60)
+
+    const resumed = await startGymSessionTimer(session.id, T0 + 300_000)
+    expect(isGymTimerRunning(resumed)).toBe(true)
+    reopened = await storedSession()
+    expect(isGymTimerRunning(reopened)).toBe(true)
+    expect(gymElapsedSeconds(reopened, T0 + 330_000)).toBe(90)
+
+    const finished = await finishGymSessionTimer(session.id, T0 + 330_000)
+    expect(finished).toMatchObject({
+      status: 'done',
+      elapsedSeconds: 90,
+      actualSeconds: 90,
+    })
+    expect(finished.timerStartedAt).toBeUndefined()
+    expect((await storedSession()).actualSeconds).toBe(90)
+    expect(await getGymSessions()).toHaveLength(1)
+
+    const repeatedFinish = await finishGymSessionTimer(session.id, T0 + 900_000)
+    expect(repeatedFinish.actualSeconds).toBe(90)
+    expect((await storedSession()).actualSeconds).toBe(90)
+  })
+
+  it('allows only one running gym timer across all sessions', async () => {
+    const first = await startGymSession(THURSDAY, 'اول', undefined, T0)
+    const second = await startGymSession(THURSDAY, 'دوم', undefined, T0)
+    await startGymSessionTimer(first.id, T0)
+    const secondStarted = await startGymSessionTimer(second.id, T0 + 60_000)
+
+    const sessions = await getGymSessions()
+    const storedFirst = sessions.find((entry) => entry.id === first.id)!
+    expect(storedFirst.elapsedSeconds).toBe(60)
+    expect(storedFirst.timerStartedAt).toBeUndefined()
+    expect(isGymTimerRunning(storedFirst)).toBe(false)
+    expect(isGymTimerRunning(secondStarted)).toBe(true)
+  })
+
+  it('reuses a draft session for a planned workout instead of creating duplicates', async () => {
+    const first = await startPlannedGymSession(THURSDAY, 'پا', 45, T0)
+    const repeated = await startPlannedGymSession(
+      THURSDAY,
+      'پا',
+      45,
+      T0 + 60_000
+    )
+
+    expect(repeated.id).toBe(first.id)
+    expect(repeated.plannedMinutes).toBe(45)
+    expect(repeated.timerStartedAt).toBe(first.timerStartedAt)
+    expect(await getGymSessions()).toHaveLength(1)
+  })
+
+  it('saves measured time in history when a session with sets is completed', async () => {
+    const exercise = await saveGymExercise({ weekday: 5, name: 'اسکوات' })
+    const session = await startGymSession(THURSDAY, 'پا', undefined, T0)
+    await saveGymSessionSet({
+      sessionId: session.id,
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      setNumber: 1,
+      reps: 10,
+      weightKg: 60,
+    })
+    await startGymSessionTimer(session.id, T0)
+    await pauseGymSessionTimer(session.id, T0 + 180_000)
+
+    const done = await completeGymSession(session.id)
+    expect(done.status).toBe('done')
+    expect(done.actualSeconds).toBe(180)
+    expect(await getGymSessionSets(session.id)).toHaveLength(1)
   })
 })
 

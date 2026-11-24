@@ -1,7 +1,8 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import '@/i18n/config'
 import { useSearch } from '@/context/search-provider'
 import { useTheme } from '@/context/theme-provider'
 import {
@@ -15,7 +16,6 @@ import {
 } from '@/components/ui/command'
 import { sidebarData } from './layout/data/sidebar-data'
 import { ScrollArea } from './ui/scroll-area'
-import '@/i18n/config'
 
 export function CommandMenu() {
   const navigate = useNavigate()

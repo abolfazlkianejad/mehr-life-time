@@ -14,16 +14,34 @@ export function calculateFinanceTotals(
   entries: FinanceEntry[],
   savingsGoalBasisPoints: number
 ): FinanceTotals {
-  const income = entries.reduce((sum, entry) => sum + (entry.type === 'income' ? BigInt(entry.amount) : 0n), 0n)
-  const expenses = entries.reduce((sum, entry) => sum + (entry.type === 'expense' ? BigInt(entry.amount) : 0n), 0n)
-  const recordedSavings = entries.reduce((sum, entry) => sum + (entry.type === 'saving' ? BigInt(entry.amount) : 0n), 0n)
+  const income = entries.reduce(
+    (sum, entry) => sum + (entry.type === 'income' ? BigInt(entry.amount) : 0n),
+    0n
+  )
+  const expenses = entries.reduce(
+    (sum, entry) =>
+      sum + (entry.type === 'expense' ? BigInt(entry.amount) : 0n),
+    0n
+  )
+  const recordedSavings = entries.reduce(
+    (sum, entry) => sum + (entry.type === 'saving' ? BigInt(entry.amount) : 0n),
+    0n
+  )
   const budgetBalance = income - expenses - recordedSavings
   const savingsGoal = (income * BigInt(savingsGoalBasisPoints) + 5000n) / 10000n
-  return { income, expenses, actualSavings: recordedSavings, recordedSavings, budgetBalance, savingsGoal }
+  return {
+    income,
+    expenses,
+    actualSavings: recordedSavings,
+    recordedSavings,
+    budgetBalance,
+    savingsGoal,
+  }
 }
 
 export function parseWholeToman(value: string): number | null {
-  const normalized = value.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  const normalized = value
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
     .replace(/[٬,\s]/g, '')
   if (!/^\d+$/.test(normalized)) return null
@@ -85,7 +103,11 @@ export function categoryTotals(
     byCategory.set(entry.category, row)
   }
   return [...byCategory.values()].sort((a, b) =>
-    a.total === b.total ? a.category.localeCompare(b.category) : b.total > a.total ? 1 : -1
+    a.total === b.total
+      ? a.category.localeCompare(b.category)
+      : b.total > a.total
+        ? 1
+        : -1
   )
 }
 
@@ -107,7 +129,8 @@ export function compareMonths(
     incomeDelta: current.income - previous.income,
     expenseDelta,
     savingsDelta: current.actualSavings - previous.actualSavings,
-    expenseTrend: expenseDelta > 0n ? 'up' : expenseDelta < 0n ? 'down' : 'flat',
+    expenseTrend:
+      expenseDelta > 0n ? 'up' : expenseDelta < 0n ? 'down' : 'flat',
   }
 }
 
@@ -124,11 +147,13 @@ export function monthTrend(
   return entriesByMonth.map(({ monthKey, entries }) => ({
     monthKey,
     expenses: entries.reduce(
-      (sum, entry) => sum + (entry.type === 'expense' ? BigInt(entry.amount) : 0n),
+      (sum, entry) =>
+        sum + (entry.type === 'expense' ? BigInt(entry.amount) : 0n),
       0n
     ),
     income: entries.reduce(
-      (sum, entry) => sum + (entry.type === 'income' ? BigInt(entry.amount) : 0n),
+      (sum, entry) =>
+        sum + (entry.type === 'income' ? BigInt(entry.amount) : 0n),
       0n
     ),
   }))

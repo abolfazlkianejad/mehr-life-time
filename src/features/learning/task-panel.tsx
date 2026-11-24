@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
-import { useTranslation } from 'react-i18next'
+import { TASK_PRIORITIES, type TaskPriority } from '@/types/timeline'
 import {
   Check,
   ChevronDown,
@@ -14,6 +14,26 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { toDateKey } from '@/lib/date-key'
+import { formatJalaliDateKey } from '@/lib/jalali'
+import { formatClockTimeValue } from '@/lib/time'
+import type { LearningTrack } from '@/services/db'
+import {
+  deleteEducationReport,
+  deleteEducationTask,
+  educationElapsedSeconds,
+  finishEducationTaskTimer,
+  pauseEducationTaskTimer,
+  saveEducationReport,
+  saveEducationTask,
+  startEducationTaskTimer,
+  updateEducationReport,
+  type EducationReport,
+  type EducationTask,
+  type EducationTaskStatus,
+} from '@/services/education'
+import type { EducationItem } from '@/services/learning'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,26 +52,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { JalaliDatePicker } from '@/components/jalali-date-picker'
 import { TimePicker24 } from '@/components/time-picker-24'
-import type { LearningTrack } from '@/services/db'
-import {
-  deleteEducationReport,
-  deleteEducationTask,
-  educationElapsedSeconds,
-  finishEducationTaskTimer,
-  pauseEducationTaskTimer,
-  saveEducationReport,
-  saveEducationTask,
-  startEducationTaskTimer,
-  updateEducationReport,
-  type EducationReport,
-  type EducationTask,
-  type EducationTaskStatus,
-} from '@/services/education'
-import type { EducationItem } from '@/services/learning'
-import { TASK_PRIORITIES, type TaskPriority } from '@/types/timeline'
-import { toDateKey } from '@/lib/date-key'
-import { formatJalaliDateKey } from '@/lib/jalali'
-import { formatClockTimeValue } from '@/lib/time'
+import { TaskDescription } from '@/features/tasks/components/task-description'
 import {
   displayTaskStatus,
   filterEducationTasks,
@@ -173,20 +174,28 @@ function TaskReports({ task, reports, onChanged, onError }: TaskReportsProps) {
           <MessageSquare className='size-4' />
           {t('learning.tasks.progressReports')}
           <Badge variant='secondary'>{history.length}</Badge>
-          <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className='mt-3 space-y-3 border-t pt-3'>
         {adding || editing ? (
           <div className='rounded-lg bg-muted/30 p-3'>
             <p className='mb-2 text-sm font-medium'>
-              {t(editing ? 'learning.reportForm.editTitle' : 'learning.reportForm.addTitle')}
+              {t(
+                editing
+                  ? 'learning.reportForm.editTitle'
+                  : 'learning.reportForm.addTitle'
+              )}
             </p>
             <ProgressReportForm
               key={editingId ?? 'new'}
               initial={editing ? reportDraftFrom(editing) : undefined}
               submitLabel={t(
-                editing ? 'learning.reportForm.update' : 'learning.reportForm.save'
+                editing
+                  ? 'learning.reportForm.update'
+                  : 'learning.reportForm.save'
               )}
               onSubmit={submit}
               onCancel={() => {
@@ -256,7 +265,9 @@ function TaskReports({ task, reports, onChanged, onError }: TaskReportsProps) {
             ))}
           </div>
         ) : (
-          <p className='text-sm text-muted-foreground'>{t('learning.reportForm.noReports')}</p>
+          <p className='text-sm text-muted-foreground'>
+            {t('learning.reportForm.noReports')}
+          </p>
         )}
       </CollapsibleContent>
     </Collapsible>
@@ -273,8 +284,17 @@ interface TaskCardProps {
   onEdit: (task: EducationTask) => void
 }
 
-function TaskCard({ task, reports, items, now, onChanged, onError, onEdit }: TaskCardProps) {
+export function TaskCard({
+  task,
+  reports,
+  items,
+  now,
+  onChanged,
+  onError,
+  onEdit,
+}: TaskCardProps) {
   const { t, i18n } = useTranslation()
+  const [descriptionOpen, setDescriptionOpen] = useState(false)
   const language = i18n.resolvedLanguage ?? i18n.language
   const running = Boolean(task.timerStartedAt)
   const status = displayTaskStatus(task)
@@ -328,10 +348,22 @@ function TaskCard({ task, reports, items, now, onChanged, onError, onEdit }: Tas
             <Badge variant={priorityVariant(task.priority)}>
               {t(`learning.priorities.${task.priority}`)}
             </Badge>
-            <Badge variant={running ? 'default' : status === 'completed' ? 'secondary' : 'outline'}>
-              {running ? t('learning.tasks.running') : t(`learning.taskStatuses.${status}`)}
+            <Badge
+              variant={
+                running
+                  ? 'default'
+                  : status === 'completed'
+                    ? 'secondary'
+                    : 'outline'
+              }
+            >
+              {running
+                ? t('learning.tasks.running')
+                : t(`learning.taskStatuses.${status}`)}
             </Badge>
-            <Badge variant='outline'>{t(`learning.tracks.${task.track}`)}</Badge>
+            <Badge variant='outline'>
+              {t(`learning.tracks.${task.track}`)}
+            </Badge>
             <Badge variant='secondary'>
               {course?.title ?? t('learning.tasks.noCourse')}
             </Badge>
@@ -353,8 +385,30 @@ function TaskCard({ task, reports, items, now, onChanged, onError, onEdit }: Tas
               {t('learning.tasks.actual')}: {formatStudyDuration(elapsed)}
             </span>
           </div>
-          {task.description ? (
-            <p className='mt-2 text-sm text-muted-foreground'>{task.description}</p>
+          {task.description?.trim() ? (
+            <Collapsible
+              open={descriptionOpen}
+              onOpenChange={setDescriptionOpen}
+              className='mt-1'
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  className='h-6 gap-1 px-1.5 py-0 text-xs text-muted-foreground'
+                  aria-label={t('learning.tasks.descriptionToggle')}
+                >
+                  <ChevronDown
+                    className={`size-3.5 shrink-0 transition-transform ${descriptionOpen ? 'rotate-180' : ''}`}
+                  />
+                  {t('learning.tasks.descriptionToggle')}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className='pt-1 text-sm text-muted-foreground'>
+                <TaskDescription value={task.description} />
+              </CollapsibleContent>
+            </Collapsible>
           ) : null}
         </div>
       </div>
@@ -363,7 +417,11 @@ function TaskCard({ task, reports, items, now, onChanged, onError, onEdit }: Tas
         {status !== 'completed' ? (
           <>
             {running ? (
-              <Button size='sm' variant='outline' onClick={() => void act('pause')}>
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() => void act('pause')}
+              >
                 <Pause className='me-2 size-4' />
                 {t('learning.tasks.pause')}
               </Button>
@@ -428,7 +486,14 @@ interface TaskPanelProps {
  * The form, the sortable/filterable table and every course link are shared;
  * the path filter keeps the three paths distinguishable.
  */
-export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: TaskPanelProps) {
+export function TaskPanel({
+  items,
+  tasks,
+  reports,
+  now,
+  onChanged,
+  onError,
+}: TaskPanelProps) {
   const { t } = useTranslation()
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm)
   const [sort, setSort] = useState<EducationTaskSort>('priority')
@@ -442,7 +507,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
 
   const formCourses = items.filter((item) => item.track === form.track)
   const filterCourses =
-    filters.track === 'all' ? items : items.filter((item) => item.track === filters.track)
+    filters.track === 'all'
+      ? items
+      : items.filter((item) => item.track === filters.track)
 
   const filtered = useMemo(
     () => filterEducationTasks(tasks, filters),
@@ -461,7 +528,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
       filtered
         .filter((task) => displayTaskStatus(task) === 'completed')
         .sort((a, b) =>
-          (b.completedAt ?? b.updatedAt).localeCompare(a.completedAt ?? a.updatedAt)
+          (b.completedAt ?? b.updatedAt).localeCompare(
+            a.completedAt ?? a.updatedAt
+          )
         ),
     [filtered]
   )
@@ -528,7 +597,11 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
             <Plus className='size-5' />
-            {t(form.id ? 'learning.taskForm.titleEdit' : 'learning.taskForm.titleAdd')}
+            {t(
+              form.id
+                ? 'learning.taskForm.titleEdit'
+                : 'learning.taskForm.titleAdd'
+            )}
           </CardTitle>
           <CardDescription>{t('learning.taskForm.hint')}</CardDescription>
         </CardHeader>
@@ -550,7 +623,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.taskForm.path')}
               value={form.track}
-              onChange={(event) => changeFormTrack(event.target.value as LearningTrack)}
+              onChange={(event) =>
+                changeFormTrack(event.target.value as LearningTrack)
+              }
             >
               {TRACKS.map((track) => (
                 <option key={track} value={track}>
@@ -575,7 +650,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.taskForm.priority')}
               value={form.priority}
-              onChange={(event) => set({ priority: event.target.value as TaskPriority })}
+              onChange={(event) =>
+                set({ priority: event.target.value as TaskPriority })
+              }
             >
               {TASK_PRIORITIES.map((priority) => (
                 <option key={priority} value={priority}>
@@ -589,7 +666,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               min='1'
               max='10080'
               value={form.estimatedMinutes}
-              onChange={(event) => set({ estimatedMinutes: event.target.value })}
+              onChange={(event) =>
+                set({ estimatedMinutes: event.target.value })
+              }
               aria-label={t('learning.taskForm.estimatedMinutes')}
               placeholder={t('learning.taskForm.estimatedMinutes')}
             />
@@ -630,7 +709,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
             <div className='flex flex-wrap items-end gap-2'>
               <Button type='submit'>
                 <Plus className='me-2 size-4' />
-                {t(form.id ? 'learning.taskForm.update' : 'learning.taskForm.add')}
+                {t(
+                  form.id ? 'learning.taskForm.update' : 'learning.taskForm.add'
+                )}
               </Button>
               {form.id ? (
                 <Button
@@ -664,7 +745,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               <Input
                 className='ps-8'
                 value={filters.query}
-                onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+                onChange={(event) =>
+                  setFilters({ ...filters, query: event.target.value })
+                }
                 aria-label={t('learning.tasks.search')}
                 placeholder={t('learning.tasks.searchPlaceholder')}
               />
@@ -673,7 +756,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.tasks.pathFilter')}
               value={filters.track}
-              onChange={(event) => changePath(event.target.value as 'all' | LearningTrack)}
+              onChange={(event) =>
+                changePath(event.target.value as 'all' | LearningTrack)
+              }
             >
               <option value='all'>{t('learning.tasks.allPaths')}</option>
               {TRACKS.map((track) => (
@@ -686,7 +771,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.tasks.courseFilter')}
               value={filters.courseId}
-              onChange={(event) => setFilters({ ...filters, courseId: event.target.value })}
+              onChange={(event) =>
+                setFilters({ ...filters, courseId: event.target.value })
+              }
             >
               <option value='all'>{t('learning.tasks.allCourses')}</option>
               {filterCourses.map((item) => (
@@ -720,9 +807,13 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
               className='h-9 rounded-md border bg-background px-3 text-sm'
               aria-label={t('learning.tasks.sort')}
               value={sort}
-              onChange={(event) => setSort(event.target.value as EducationTaskSort)}
+              onChange={(event) =>
+                setSort(event.target.value as EducationTaskSort)
+              }
             >
-              <option value='priority'>{t('learning.tasks.sortPriority')}</option>
+              <option value='priority'>
+                {t('learning.tasks.sortPriority')}
+              </option>
               <option value='date'>{t('learning.tasks.sortDate')}</option>
               <option value='time'>{t('learning.tasks.sortTime')}</option>
             </select>
@@ -746,10 +837,14 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
           ) : filters.status === 'completed' ? null : (
             <div className='rounded-lg border border-dashed p-6 text-center'>
               <p className='text-sm font-medium'>
-                {hasAnyTask ? t('learning.tasks.empty') : t('learning.tasks.emptyAll')}
+                {hasAnyTask
+                  ? t('learning.tasks.empty')
+                  : t('learning.tasks.emptyAll')}
               </p>
               <p className='mt-1 text-xs text-muted-foreground'>
-                {hasAnyTask ? t('learning.tasks.emptyHint') : t('learning.tasks.emptyAllHint')}
+                {hasAnyTask
+                  ? t('learning.tasks.emptyHint')
+                  : t('learning.tasks.emptyAllHint')}
               </p>
             </div>
           )}
@@ -757,7 +852,10 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
       </Card>
 
       {completedTasks.length ? (
-        <Collapsible key={filters.status} defaultOpen={filters.status === 'completed'}>
+        <Collapsible
+          key={filters.status}
+          defaultOpen={filters.status === 'completed'}
+        >
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className='cursor-pointer'>
@@ -771,7 +869,9 @@ export function TaskPanel({ items, tasks, reports, now, onChanged, onError }: Ta
                     <ChevronDown className='size-4' />
                   </span>
                 </CardTitle>
-                <CardDescription>{t('learning.tasks.completedHint')}</CardDescription>
+                <CardDescription>
+                  {t('learning.tasks.completedHint')}
+                </CardDescription>
               </CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>

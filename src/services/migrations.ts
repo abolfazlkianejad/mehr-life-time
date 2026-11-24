@@ -43,7 +43,10 @@ export async function migrateLegacyMeals(database: IDBDatabase): Promise<void> {
   const flag = await getAllRecords<MetaRow>(database, STORE_META)
   if (flag.some((row) => row.key === MEAL_MIGRATION_FLAG)) return
 
-  const dinners = await getAllRecords<LegacyDinnerRow>(database, STORE_DINNER_LOGS)
+  const dinners = await getAllRecords<LegacyDinnerRow>(
+    database,
+    STORE_DINNER_LOGS
+  )
   const days = await getAllRecords<LegacyDayRow>(database, STORE_DASHBOARD_DAYS)
 
   const meals: unknown[] = []

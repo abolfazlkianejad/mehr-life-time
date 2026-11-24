@@ -1,24 +1,22 @@
 import {
   LayoutDashboard,
-  CalendarClock,
   Sunrise,
   GraduationCap,
   Dumbbell,
-  BatteryCharging,
-  ListTodo,
-  Bell,
   Palette,
   Settings,
   Wrench,
   UserCog,
   Monitor,
   Wallet,
-  Share2,
   ClipboardCheck,
   Newspaper,
   FolderGit2,
   Utensils,
   HardDrive,
+  Target,
+  TrendingUp,
+  Bell,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -40,9 +38,14 @@ export const sidebarData: SidebarData = {
           icon: LayoutDashboard,
         },
         {
-          title: 'nav.tasks',
-          url: '/tasks',
-          icon: ListTodo,
+          title: 'nav.goals',
+          url: '/goals',
+          icon: Target,
+        },
+        {
+          title: 'nav.analytics',
+          url: '/analytics',
+          icon: TrendingUp,
         },
         {
           title: 'nav.education',
@@ -65,11 +68,6 @@ export const sidebarData: SidebarData = {
           icon: Dumbbell,
         },
         {
-          title: 'nav.social',
-          url: '/social',
-          icon: Share2,
-        },
-        {
           title: 'nav.news',
           url: '/news',
           icon: Newspaper,
@@ -90,19 +88,9 @@ export const sidebarData: SidebarData = {
       title: 'nav.general',
       items: [
         {
-          title: 'nav.timeline',
-          url: '/timeline',
-          icon: CalendarClock,
-        },
-        {
-          title: 'nav.goldenHour',
-          url: '/golden-hour',
+          title: 'nav.morningRoutine',
+          url: '/morning-routine',
           icon: Sunrise,
-        },
-        {
-          title: 'nav.energy',
-          url: '/energy',
-          icon: BatteryCharging,
         },
       ],
     },

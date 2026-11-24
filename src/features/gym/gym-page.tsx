@@ -84,6 +84,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { formatHoursMinutes } from '@/features/goals/goal-utils'
 
 interface GymPageData {
   plans: GymPlan[]
@@ -220,6 +221,9 @@ function SessionCard({ session, sets, expanded, onToggle }: SessionCardProps) {
           <p className='text-xs text-muted-foreground'>
             {formatJalaliDateKey(session.dateKey)} · {dayLabel} ·{' '}
             {fmt(sets.length)} {t('gym.sets')}
+            {session.actualSeconds !== undefined
+              ? ` · ${t('gym.actualDuration')}: ${formatHoursMinutes(session.actualSeconds)}`
+              : ''}
           </p>
         </div>
         <div className='flex shrink-0 items-center gap-2'>
@@ -250,6 +254,14 @@ function SessionCard({ session, sets, expanded, onToggle }: SessionCardProps) {
       )}
     </div>
   )
+}
+
+function parsePlanDuration(text: string): number | undefined | null {
+  const trimmed = text.trim()
+  if (!trimmed) return undefined
+  const value = Number(trimmed)
+  if (!Number.isInteger(value) || value < 1 || value > 600) return null
+  return value
 }
 
 function parseSetInputs(
@@ -291,6 +303,7 @@ export function GymPage() {
   const [sessionDate, setSessionDate] = useState(() => dateKeyOf(new Date()))
 
   const [planTitleDraft, setPlanTitleDraft] = useState('')
+  const [planDurationDraft, setPlanDurationDraft] = useState('')
   const [editingPlanTitle, setEditingPlanTitle] = useState(false)
   const [newExerciseName, setNewExerciseName] = useState('')
   const [editingExercise, setEditingExercise] = useState<{
@@ -413,6 +426,7 @@ export function GymPage() {
     setSelectedWeekday(weekday)
     setEditingPlanTitle(false)
     setPlanTitleDraft('')
+    setPlanDurationDraft('')
     setEditingExercise(null)
     setNewExerciseName('')
   }
@@ -424,9 +438,15 @@ export function GymPage() {
       setError(t('gym.invalidTitle'))
       return
     }
+    const duration = parsePlanDuration(planDurationDraft)
+    if (duration === null) {
+      setError(t('gym.invalidDuration'))
+      return
+    }
     void run(async () => {
-      await saveGymPlan(selectedWeekday, title)
+      await saveGymPlan(selectedWeekday, title, duration)
       setPlanTitleDraft('')
+      setPlanDurationDraft('')
     })
   }
 
@@ -437,8 +457,13 @@ export function GymPage() {
       setError(t('gym.invalidTitle'))
       return
     }
+    const duration = parsePlanDuration(planDurationDraft)
+    if (duration === null) {
+      setError(t('gym.invalidDuration'))
+      return
+    }
     void run(async () => {
-      await saveGymPlan(selectedWeekday, title)
+      await saveGymPlan(selectedWeekday, title, duration)
       setEditingPlanTitle(false)
     })
   }
@@ -448,6 +473,7 @@ export function GymPage() {
       await deleteGymPlan(selectedWeekday)
       setEditingPlanTitle(false)
       setPlanTitleDraft('')
+      setPlanDurationDraft('')
     })
   }
 
@@ -490,7 +516,13 @@ export function GymPage() {
 
   const beginSession = () => {
     if (!sessionPlan) return
-    void run(() => startGymSession(sessionDate, sessionPlan.title))
+    void run(() =>
+      startGymSession(
+        sessionDate,
+        sessionPlan.title,
+        sessionPlan.plannedMinutes
+      )
+    )
   }
 
   const addSet = (exercise: GymExercise, session: GymSession) => {
@@ -693,6 +725,18 @@ export function GymPage() {
                       aria-label={t('gym.planTitle')}
                       className='min-w-0 flex-1'
                     />
+                    <Input
+                      type='number'
+                      min={1}
+                      max={600}
+                      value={planDurationDraft}
+                      onChange={(event) =>
+                        setPlanDurationDraft(event.target.value)
+                      }
+                      placeholder={t('gym.plannedDurationPlaceholder')}
+                      aria-label={t('gym.plannedDuration')}
+                      className='w-32'
+                    />
                     <Button type='submit' disabled={busy}>
                       <Check className='me-2 size-4' />
                       {t('gym.save')}
@@ -714,6 +758,9 @@ export function GymPage() {
                       </p>
                       <p className='text-xs text-muted-foreground'>
                         {t('gym.planTitle')}
+                        {selectedPlan.plannedMinutes
+                          ? ` · ${t('gym.plannedDuration')}: ${selectedPlan.plannedMinutes}`
+                          : ''}
                       </p>
                     </div>
                     <div className='flex gap-2'>
@@ -723,6 +770,11 @@ export function GymPage() {
                         size='sm'
                         onClick={() => {
                           setPlanTitleDraft(selectedPlan.title)
+                          setPlanDurationDraft(
+                            selectedPlan.plannedMinutes
+                              ? String(selectedPlan.plannedMinutes)
+                              : ''
+                          )
                           setEditingPlanTitle(true)
                         }}
                       >
@@ -778,6 +830,18 @@ export function GymPage() {
                       placeholder={t('gym.planTitlePlaceholder')}
                       aria-label={t('gym.planTitle')}
                       className='min-w-0 flex-1'
+                    />
+                    <Input
+                      type='number'
+                      min={1}
+                      max={600}
+                      value={planDurationDraft}
+                      onChange={(event) =>
+                        setPlanDurationDraft(event.target.value)
+                      }
+                      placeholder={t('gym.plannedDurationPlaceholder')}
+                      aria-label={t('gym.plannedDuration')}
+                      className='w-32'
                     />
                     <Button type='submit' disabled={busy}>
                       <Plus className='me-2 size-4' />

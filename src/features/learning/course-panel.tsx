@@ -1,5 +1,4 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
   CheckCheck,
@@ -11,17 +10,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { useTranslation } from 'react-i18next'
+import { openExternal } from '@/lib/open-external'
 import type { LearningTrack } from '@/services/db'
 import {
   detachCourseFromEducationTasks,
@@ -35,6 +25,17 @@ import {
   type EducationItem,
   type EducationItemStatus,
 } from '@/services/learning'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   displayTaskStatus,
   formatEducationCreatedAt,
@@ -91,7 +92,8 @@ function formFromItem(item: EducationItem): CourseFormState {
     instructor: item.instructor ?? '',
     platform: item.platform ?? '',
     url: item.url ?? '',
-    estimatedHours: item.estimatedHours === undefined ? '' : String(item.estimatedHours),
+    estimatedHours:
+      item.estimatedHours === undefined ? '' : String(item.estimatedHours),
     resources: item.resources ?? '',
   }
 }
@@ -111,7 +113,13 @@ interface CoursePanelProps {
  * in the same local store, so the shared task and report system can link to
  * any of them.
  */
-export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanelProps) {
+export function CoursePanel({
+  track,
+  items,
+  tasks,
+  now,
+  onChanged,
+}: CoursePanelProps) {
   const { t } = useTranslation()
   const [form, setForm] = useState<CourseFormState>(emptyForm)
   const [formError, setFormError] = useState('')
@@ -141,7 +149,9 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
       return educationItemCreatedTime(b) - educationItemCreatedTime(a)
     })
   const trackTasks = tasks.filter((task) => task.track === track)
-  const openTasks = trackTasks.filter((task) => displayTaskStatus(task) !== 'completed')
+  const openTasks = trackTasks.filter(
+    (task) => displayTaskStatus(task) !== 'completed'
+  )
   const studiedSeconds = trackTasks.reduce(
     (total, task) => total + educationElapsedSeconds(task, now),
     0
@@ -164,7 +174,12 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
     if (track === 'university') {
       const creditsText = form.credits.trim()
       credits = Number(creditsText)
-      if (!creditsText || !Number.isInteger(credits) || credits < 0 || credits > 60) {
+      if (
+        !creditsText ||
+        !Number.isInteger(credits) ||
+        credits < 0 ||
+        credits > 60
+      ) {
         showError(t('learning.paths.invalidCredits'))
         return
       }
@@ -275,7 +290,11 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
             <BookOpen className='size-5' />
-            {t(form.id ? 'learning.paths.formTitleEdit' : 'learning.paths.formTitleAdd')}
+            {t(
+              form.id
+                ? 'learning.paths.formTitleEdit'
+                : 'learning.paths.formTitleAdd'
+            )}
           </CardTitle>
           <CardDescription>{t(TRACK_HINT_KEY[track])}</CardDescription>
         </CardHeader>
@@ -290,133 +309,145 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
               disabled={saving}
               className='m-0 grid min-w-0 gap-3 border-0 p-0'
             >
-            <Input
-              value={form.title}
-              onChange={(event) => set({ title: event.target.value })}
-              aria-label={t('learning.paths.name')}
-              placeholder={t('learning.paths.namePlaceholder')}
-            />
-            <Textarea
-              rows={2}
-              value={form.description}
-              onChange={(event) => set({ description: event.target.value })}
-              aria-label={t('learning.paths.description')}
-              placeholder={t('learning.paths.descriptionPlaceholder')}
-            />
-            {track === 'masters' ? (
+              <Input
+                value={form.title}
+                onChange={(event) => set({ title: event.target.value })}
+                aria-label={t('learning.paths.name')}
+                placeholder={t('learning.paths.namePlaceholder')}
+              />
               <Textarea
                 rows={2}
-                value={form.resources}
-                onChange={(event) => set({ resources: event.target.value })}
-                aria-label={t('learning.paths.resources')}
-                placeholder={t('learning.paths.resourcesPlaceholder')}
+                value={form.description}
+                onChange={(event) => set({ description: event.target.value })}
+                aria-label={t('learning.paths.description')}
+                placeholder={t('learning.paths.descriptionPlaceholder')}
               />
-            ) : null}
-            {track === 'university' ? (
-              <div className='grid gap-3 sm:grid-cols-2'>
-                <Input
-                  type='number'
-                  min='0'
-                  max='60'
-                  value={form.credits}
-                  onChange={(event) => set({ credits: event.target.value })}
-                  aria-label={t('learning.paths.credits')}
-                  placeholder={t('learning.paths.credits')}
+              {track === 'masters' ? (
+                <Textarea
+                  rows={2}
+                  value={form.resources}
+                  onChange={(event) => set({ resources: event.target.value })}
+                  aria-label={t('learning.paths.resources')}
+                  placeholder={t('learning.paths.resourcesPlaceholder')}
                 />
-                <Input
-                  value={form.semester}
-                  onChange={(event) => set({ semester: event.target.value })}
-                  aria-label={t('learning.paths.semester')}
-                  placeholder={t('learning.paths.semesterPlaceholder')}
-                />
-                <Input
-                  className='sm:col-span-2'
-                  value={form.professor}
-                  onChange={(event) => set({ professor: event.target.value })}
-                  aria-label={t('learning.paths.professor')}
-                  placeholder={t('learning.paths.professorPlaceholder')}
-                />
-              </div>
-            ) : null}
-            {track === 'course' ? (
-              <div className='grid gap-3 sm:grid-cols-2'>
-                <Input
-                  value={form.instructor}
-                  onChange={(event) => set({ instructor: event.target.value })}
-                  aria-label={t('learning.paths.instructor')}
-                  placeholder={t('learning.paths.instructorPlaceholder')}
-                />
-                <Input
-                  value={form.platform}
-                  onChange={(event) => set({ platform: event.target.value })}
-                  aria-label={t('learning.paths.platform')}
-                  placeholder={t('learning.paths.platformPlaceholder')}
-                />
-                <Input
-                  type='number'
-                  min='0'
-                  step='0.5'
-                  value={form.estimatedHours}
-                  onChange={(event) => set({ estimatedHours: event.target.value })}
-                  aria-label={t('learning.paths.estimatedHours')}
-                  placeholder={t('learning.paths.estimatedHours')}
-                />
-                <Input
-                  type='number'
-                  min='0'
-                  max='100'
-                  value={form.progress}
-                  onChange={(event) => set({ progress: event.target.value })}
-                  aria-label={t('learning.paths.progress')}
-                  placeholder={t('learning.paths.progress')}
-                />
-                <Input
-                  className='sm:col-span-2'
-                  type='url'
-                  value={form.url}
-                  onChange={(event) => set({ url: event.target.value })}
-                  aria-label={t('learning.paths.url')}
-                  placeholder={t('learning.paths.urlPlaceholder')}
-                  dir='ltr'
-                />
-              </div>
-            ) : null}
-            <select
-              className='h-9 rounded-md border bg-background px-3 text-sm'
-              aria-label={t('learning.paths.status')}
-              value={form.status}
-              onChange={(event) => set({ status: event.target.value as EducationItemStatus })}
-            >
-              {(['planned', 'active', 'completed'] as const).map((status) => (
-                <option key={status} value={status}>
-                  {t(`learning.courseStatuses.${status}`)}
-                </option>
-              ))}
-            </select>
-            {formError ? (
-              <div role='alert' className='text-sm text-destructive'>
-                <p>{formError}</p>
-                {formErrorDetail ? (
-                  <p dir='ltr' className='mt-1 text-xs text-muted-foreground'>
-                    {formErrorDetail}
-                  </p>
+              ) : null}
+              {track === 'university' ? (
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <Input
+                    type='number'
+                    min='0'
+                    max='60'
+                    value={form.credits}
+                    onChange={(event) => set({ credits: event.target.value })}
+                    aria-label={t('learning.paths.credits')}
+                    placeholder={t('learning.paths.credits')}
+                  />
+                  <Input
+                    value={form.semester}
+                    onChange={(event) => set({ semester: event.target.value })}
+                    aria-label={t('learning.paths.semester')}
+                    placeholder={t('learning.paths.semesterPlaceholder')}
+                  />
+                  <Input
+                    className='sm:col-span-2'
+                    value={form.professor}
+                    onChange={(event) => set({ professor: event.target.value })}
+                    aria-label={t('learning.paths.professor')}
+                    placeholder={t('learning.paths.professorPlaceholder')}
+                  />
+                </div>
+              ) : null}
+              {track === 'course' ? (
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <Input
+                    value={form.instructor}
+                    onChange={(event) =>
+                      set({ instructor: event.target.value })
+                    }
+                    aria-label={t('learning.paths.instructor')}
+                    placeholder={t('learning.paths.instructorPlaceholder')}
+                  />
+                  <Input
+                    value={form.platform}
+                    onChange={(event) => set({ platform: event.target.value })}
+                    aria-label={t('learning.paths.platform')}
+                    placeholder={t('learning.paths.platformPlaceholder')}
+                  />
+                  <Input
+                    type='number'
+                    min='0'
+                    step='0.5'
+                    value={form.estimatedHours}
+                    onChange={(event) =>
+                      set({ estimatedHours: event.target.value })
+                    }
+                    aria-label={t('learning.paths.estimatedHours')}
+                    placeholder={t('learning.paths.estimatedHours')}
+                  />
+                  <Input
+                    type='number'
+                    min='0'
+                    max='100'
+                    value={form.progress}
+                    onChange={(event) => set({ progress: event.target.value })}
+                    aria-label={t('learning.paths.progress')}
+                    placeholder={t('learning.paths.progress')}
+                  />
+                  <Input
+                    className='sm:col-span-2'
+                    type='url'
+                    value={form.url}
+                    onChange={(event) => set({ url: event.target.value })}
+                    aria-label={t('learning.paths.url')}
+                    placeholder={t('learning.paths.urlPlaceholder')}
+                    dir='ltr'
+                  />
+                </div>
+              ) : null}
+              <select
+                className='h-9 rounded-md border bg-background px-3 text-sm'
+                aria-label={t('learning.paths.status')}
+                value={form.status}
+                onChange={(event) =>
+                  set({ status: event.target.value as EducationItemStatus })
+                }
+              >
+                {(['planned', 'active', 'completed'] as const).map((status) => (
+                  <option key={status} value={status}>
+                    {t(`learning.courseStatuses.${status}`)}
+                  </option>
+                ))}
+              </select>
+              {formError ? (
+                <div role='alert' className='text-sm text-destructive'>
+                  <p>{formError}</p>
+                  {formErrorDetail ? (
+                    <p dir='ltr' className='mt-1 text-xs text-muted-foreground'>
+                      {formErrorDetail}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className='flex flex-wrap gap-2'>
+                <Button type='submit'>
+                  <Plus className='me-2 size-4' />
+                  {saving
+                    ? t('learning.paths.saving')
+                    : t(
+                        form.id ? 'learning.paths.update' : 'learning.paths.add'
+                      )}
+                </Button>
+                {form.id ? (
+                  <Button
+                    type='button'
+                    variant='outline'
+                    onClick={() => setForm(emptyForm())}
+                  >
+                    <X className='me-2 size-4' />
+                    {t('learning.paths.cancel')}
+                  </Button>
                 ) : null}
               </div>
-            ) : null}
-            <div className='flex flex-wrap gap-2'>
-              <Button type='submit'>
-                <Plus className='me-2 size-4' />
-                {saving
-                  ? t('learning.paths.saving')
-                  : t(form.id ? 'learning.paths.update' : 'learning.paths.add')}
-              </Button>
-              {form.id ? (
-                <Button type='button' variant='outline' onClick={() => setForm(emptyForm())}>
-                  <X className='me-2 size-4' />
-                  {t('learning.paths.cancel')}
-                </Button>
-              ) : null}
-            </div>
             </fieldset>
           </form>
         </CardContent>
@@ -437,7 +468,9 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
           {trackItems.length ? (
             trackItems.map((item) => {
               const linked = tasks.filter((task) => task.courseId === item.id)
-              const completed = linked.filter((task) => task.status === 'completed').length
+              const completed = linked.filter(
+                (task) => task.status === 'completed'
+              ).length
               const seconds = linked.reduce(
                 (total, task) => total + educationElapsedSeconds(task, now),
                 0
@@ -501,8 +534,8 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
                     ) : null}
                     {item.estimatedHours !== undefined ? (
                       <span>
-                        {t('learning.paths.estimatedHours')}: {item.estimatedHours}{' '}
-                        {t('learning.paths.hoursUnit')}
+                        {t('learning.paths.estimatedHours')}:{' '}
+                        {item.estimatedHours} {t('learning.paths.hoursUnit')}
                       </span>
                     ) : null}
                     {item.track === 'course' ? (
@@ -518,12 +551,16 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
 
                   {item.resources ? (
                     <p className='mt-2 text-sm'>
-                      <span className='font-medium'>{t('learning.paths.resources')}: </span>
+                      <span className='font-medium'>
+                        {t('learning.paths.resources')}:{' '}
+                      </span>
                       {item.resources}
                     </p>
                   ) : null}
                   {item.description ? (
-                    <p className='mt-1 text-sm text-muted-foreground'>{item.description}</p>
+                    <p className='mt-1 text-sm text-muted-foreground'>
+                      {item.description}
+                    </p>
                   ) : null}
                   {item.url ? (
                     <a
@@ -531,6 +568,10 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
                       href={item.url}
                       target='_blank'
                       rel='noreferrer'
+                      onClick={(event) => {
+                        event.preventDefault()
+                        openExternal(item.url ?? '')
+                      }}
                     >
                       <ExternalLink className='size-3.5' />
                       <span dir='ltr' className='truncate'>
@@ -548,7 +589,10 @@ export function CoursePanel({ track, items, tasks, now, onChanged }: CoursePanel
                       <CheckCheck className='size-3.5' />
                       {t('learning.paths.completedTasks')}: {completed}
                     </Badge>
-                    <Badge variant='secondary' className='gap-1 font-mono tabular-nums'>
+                    <Badge
+                      variant='secondary'
+                      className='gap-1 font-mono tabular-nums'
+                    >
                       <Timer className='size-3.5' />
                       {formatStudyDuration(seconds)}
                     </Badge>

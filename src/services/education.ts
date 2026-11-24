@@ -1,3 +1,8 @@
+import {
+  isTaskPriority,
+  TASK_PRIORITIES,
+  type TaskPriority,
+} from '@/types/timeline'
 import { isDateKey, toDateKey } from '@/lib/date-key'
 import { createId } from '@/lib/id'
 import { isClockTime } from '@/lib/time'
@@ -17,11 +22,6 @@ import {
   putRecords,
 } from '@/services/idb'
 import type { EducationItem } from '@/services/learning'
-import {
-  isTaskPriority,
-  TASK_PRIORITIES,
-  type TaskPriority,
-} from '@/types/timeline'
 
 export const EDUCATION_TASK_STATUSES = [
   'pending',
@@ -56,6 +56,8 @@ export interface EducationTask {
   dailySeconds?: Record<string, number>
   /** Non-null only while this task owns the single active education timer. */
   timerStartedAt?: string
+  /** Set on tasks created by the planner agent; gates agent-side deletion. */
+  plannerManaged?: boolean
   createdAt: string
   updatedAt: string
   completedAt?: string
@@ -72,6 +74,7 @@ export interface EducationTaskInput {
   time: string
   estimatedMinutes: number
   status?: EducationTaskStatus
+  plannerManaged?: boolean
 }
 
 /** A timestamped progress report. Reports are append-only history entries. */
@@ -144,7 +147,11 @@ export function splitStudySecondsByDay(
 ): Record<string, number> {
   const result: Record<string, number> = {}
   const startMs = Date.parse(startedAt)
-  if (!Number.isFinite(startMs) || !Number.isFinite(endedAtMs) || endedAtMs <= startMs) {
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endedAtMs) ||
+    endedAtMs <= startMs
+  ) {
     return result
   }
   let cursor = startMs
@@ -220,7 +227,8 @@ export function settleEducationTask<T extends EducationTimerState>(
   }
   return {
     ...task,
-    actualSeconds: Math.max(0, Math.floor(task.actualSeconds || 0)) + liveSeconds,
+    actualSeconds:
+      Math.max(0, Math.floor(task.actualSeconds || 0)) + liveSeconds,
     dailySeconds,
     timerStartedAt: undefined,
     status: completed ? 'completed' : 'paused',
@@ -233,11 +241,15 @@ function buildTask(
   base: EducationTask | undefined,
   nowMs: number
 ): EducationTask {
-  if (!isLearningTrack(input.track)) throw new RangeError('unknown education path')
+  if (!isLearningTrack(input.track))
+    throw new RangeError('unknown education path')
   if (!input.title.trim()) throw new RangeError('task title is required')
-  if (!isTaskPriority(input.priority)) throw new RangeError('unknown task priority')
-  if (!isDateKey(input.dateKey)) throw new RangeError('task date must use YYYY-MM-DD')
-  if (!isClockTime(input.time)) throw new RangeError('task time must use 24-hour HH:MM')
+  if (!isTaskPriority(input.priority))
+    throw new RangeError('unknown task priority')
+  if (!isDateKey(input.dateKey))
+    throw new RangeError('task date must use YYYY-MM-DD')
+  if (!isClockTime(input.time))
+    throw new RangeError('task time must use 24-hour HH:MM')
   if (
     !Number.isInteger(input.estimatedMinutes) ||
     input.estimatedMinutes < 1 ||
@@ -272,6 +284,7 @@ function buildTask(
   const nowIso = new Date(nowMs).toISOString()
   const description = optionalText(input.description)
   const courseId = optionalText(input.courseId)
+  const plannerManaged = input.plannerManaged ?? base?.plannerManaged
   return {
     id: base?.id ?? input.id ?? createId('edu-task'),
     track: input.track,
@@ -284,8 +297,11 @@ function buildTask(
     estimatedMinutes: input.estimatedMinutes,
     status,
     actualSeconds,
-    ...(dailySeconds && Object.keys(dailySeconds).length ? { dailySeconds } : {}),
+    ...(dailySeconds && Object.keys(dailySeconds).length
+      ? { dailySeconds }
+      : {}),
     ...(timerStartedAt ? { timerStartedAt } : {}),
+    ...(plannerManaged ? { plannerManaged: true } : {}),
     ...(completedAt ? { completedAt } : {}),
     createdAt: base?.createdAt ?? nowIso,
     updatedAt: nowIso,
@@ -297,12 +313,16 @@ export async function getEducationTasks(): Promise<EducationTask[]> {
   return getAllRecords<EducationTask>(db, STORE_EDUCATION_TASKS)
 }
 
-export async function getEducationTask(id: string): Promise<EducationTask | undefined> {
+export async function getEducationTask(
+  id: string
+): Promise<EducationTask | undefined> {
   const db = await getDatabase()
   return getRecord<EducationTask>(db, STORE_EDUCATION_TASKS, id)
 }
 
-export async function getActiveEducationTask(): Promise<EducationTask | undefined> {
+export async function getActiveEducationTask(): Promise<
+  EducationTask | undefined
+> {
   const tasks = await getEducationTasks()
   return tasks.find((task) => Boolean(task.timerStartedAt))
 }
@@ -315,10 +335,15 @@ export async function saveEducationTask(
   const base = input.id
     ? await getRecord<EducationTask>(db, STORE_EDUCATION_TASKS, input.id)
     : undefined
-  if (input.id && !base) throw new RangeError('education task does not exist')
+  // Upsert: a caller-supplied id either edits its record or creates it. This
+  // lets the planner agent use stable client ids without creating duplicates.
   const courseId = optionalText(input.courseId)
   if (courseId) {
-    const course = await getRecord<EducationItem>(db, STORE_EDUCATION_ITEMS, courseId)
+    const course = await getRecord<EducationItem>(
+      db,
+      STORE_EDUCATION_ITEMS,
+      courseId
+    )
     if (!course) throw new RangeError('linked course does not exist')
     if (course.track !== input.track) {
       throw new RangeError('linked course belongs to another education path')
@@ -358,7 +383,9 @@ export async function startEducationTaskTimer(
         return
       }
       if (target.status === 'completed') {
-        failure = new RangeError('a completed education task can not be started')
+        failure = new RangeError(
+          'a completed education task can not be started'
+        )
         transaction.abort()
         return
       }
@@ -387,9 +414,17 @@ export async function startEducationTaskTimer(
       else reject(failure ?? new Error('the education timer did not start'))
     }
     transaction.onerror = () =>
-      reject(failure ?? transaction.error ?? new Error('the education timer did not start'))
+      reject(
+        failure ??
+          transaction.error ??
+          new Error('the education timer did not start')
+      )
     transaction.onabort = () =>
-      reject(failure ?? transaction.error ?? new Error('the education timer did not start'))
+      reject(
+        failure ??
+          transaction.error ??
+          new Error('the education timer did not start')
+      )
   })
 }
 
@@ -434,9 +469,17 @@ async function settleTaskStatus(
       else reject(failure ?? new Error('the education timer was not updated'))
     }
     transaction.onerror = () =>
-      reject(failure ?? transaction.error ?? new Error('the education timer was not updated'))
+      reject(
+        failure ??
+          transaction.error ??
+          new Error('the education timer was not updated')
+      )
     transaction.onabort = () =>
-      reject(failure ?? transaction.error ?? new Error('the education timer was not updated'))
+      reject(
+        failure ??
+          transaction.error ??
+          new Error('the education timer was not updated')
+      )
   })
 }
 
@@ -472,9 +515,13 @@ export async function deleteEducationTask(taskId: string): Promise<void> {
     }
     transaction.oncomplete = () => resolve()
     transaction.onerror = () =>
-      reject(transaction.error ?? new Error('failed to delete the education task'))
+      reject(
+        transaction.error ?? new Error('failed to delete the education task')
+      )
     transaction.onabort = () =>
-      reject(transaction.error ?? new Error('failed to delete the education task'))
+      reject(
+        transaction.error ?? new Error('failed to delete the education task')
+      )
   })
 }
 
@@ -523,7 +570,11 @@ export async function saveEducationReport(
   const summary = input.summary.trim()
   if (!summary) throw new RangeError('a progress report needs a summary')
   const db = await getDatabase()
-  const task = await getRecord<EducationTask>(db, STORE_EDUCATION_TASKS, input.taskId)
+  const task = await getRecord<EducationTask>(
+    db,
+    STORE_EDUCATION_TASKS,
+    input.taskId
+  )
   if (!task) throw new RangeError('the education task does not exist')
   const course = task.courseId
     ? await getRecord<EducationItem>(db, STORE_EDUCATION_ITEMS, task.courseId)
@@ -569,7 +620,9 @@ export async function updateEducationReport(
   if (!base) throw new RangeError('the progress report does not exist')
   const summary = (patch.summary ?? base.summary).trim()
   if (!summary) throw new RangeError('a progress report needs a summary')
-  const topics = optionalText(patch.topics !== undefined ? patch.topics : base.topics)
+  const topics = optionalText(
+    patch.topics !== undefined ? patch.topics : base.topics
+  )
   const exercises = optionalText(
     patch.exercises !== undefined ? patch.exercises : base.exercises
   )

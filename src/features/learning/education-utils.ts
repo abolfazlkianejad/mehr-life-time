@@ -1,3 +1,4 @@
+import type { TaskPriority } from '@/types/timeline'
 import { toDateKey } from '@/lib/date-key'
 import { formatJalaliDateKey } from '@/lib/jalali'
 import type { LearningTrack } from '@/services/db'
@@ -9,7 +10,6 @@ import {
   type EducationTaskStatus,
 } from '@/services/education'
 import type { EducationItem } from '@/services/learning'
-import type { TaskPriority } from '@/types/timeline'
 
 export const PRIORITY_RANK: Record<TaskPriority, number> = {
   low: 0,
@@ -99,7 +99,8 @@ export function filterEducationTasks(
   const query = filters.query.trim().toLocaleLowerCase()
   return tasks.filter((task) => {
     if (filters.track !== 'all' && task.track !== filters.track) return false
-    if (filters.courseId !== 'all' && task.courseId !== filters.courseId) return false
+    if (filters.courseId !== 'all' && task.courseId !== filters.courseId)
+      return false
     const status = displayTaskStatus(task)
     if (filters.status === 'open' && status === 'completed') return false
     if (
@@ -175,7 +176,8 @@ export function summarizeEducation(
       (total, day) =>
         total +
         tasks.reduce(
-          (dayTotal, task) => dayTotal + educationSecondsOnDay(task, day, nowMs),
+          (dayTotal, task) =>
+            dayTotal + educationSecondsOnDay(task, day, nowMs),
           0
         ),
       0
@@ -226,7 +228,8 @@ export function filterEducationReports(
   const query = filters.query.trim().toLocaleLowerCase()
   return reports
     .filter((report) => {
-      if (filters.track !== 'all' && report.track !== filters.track) return false
+      if (filters.track !== 'all' && report.track !== filters.track)
+        return false
       if (filters.courseId !== 'all' && report.courseId !== filters.courseId) {
         return false
       }
@@ -259,7 +262,9 @@ export interface ReportCourseOption {
 }
 
 /** Course options that actually appear in the report history. */
-export function reportCourseOptions(reports: EducationReport[]): ReportCourseOption[] {
+export function reportCourseOptions(
+  reports: EducationReport[]
+): ReportCourseOption[] {
   const options = new Map<string, string>()
   for (const report of reports) {
     if (!report.courseId) continue
@@ -271,7 +276,9 @@ export function reportCourseOptions(reports: EducationReport[]): ReportCourseOpt
 }
 
 /** Newest report timestamp per task, used to badge task cards. */
-export function reportCountByTask(reports: EducationReport[]): Record<string, number> {
+export function reportCountByTask(
+  reports: EducationReport[]
+): Record<string, number> {
   const counts: Record<string, number> = {}
   for (const report of reports) {
     counts[report.taskId] = (counts[report.taskId] ?? 0) + 1

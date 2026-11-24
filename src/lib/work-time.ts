@@ -3,7 +3,10 @@ import type { WorkSessionRecord } from '@/types/work'
 
 export type WorkTimeFilter = 'company' | 'freelance' | 'all'
 
-type TimedBlock = Pick<TimelineBlockRecord, 'id' | 'elapsedSeconds' | 'timerStartedAt' | 'isCompanyWork' | 'status'>
+type TimedBlock = Pick<
+  TimelineBlockRecord,
+  'id' | 'elapsedSeconds' | 'timerStartedAt' | 'isCompanyWork' | 'status'
+>
 
 function wholeSeconds(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -12,7 +15,11 @@ function wholeSeconds(value: number | undefined): number {
 }
 
 /** Stored timer duration plus a valid active interval, clamped against bad clocks/data. */
-export function timelineBlockSeconds(block: Pick<TimedBlock, 'elapsedSeconds' | 'timerStartedAt'> & Partial<Pick<TimedBlock, 'status'>>, now = Date.now()): number {
+export function timelineBlockSeconds(
+  block: Pick<TimedBlock, 'elapsedSeconds' | 'timerStartedAt'> &
+    Partial<Pick<TimedBlock, 'status'>>,
+  now = Date.now()
+): number {
   const stored = wholeSeconds(block.elapsedSeconds)
   if (block.status && block.status !== 'in_progress') return stored
   if (!block.timerStartedAt || !Number.isFinite(now)) return stored
@@ -23,7 +30,10 @@ export function timelineBlockSeconds(block: Pick<TimedBlock, 'elapsedSeconds' | 
 }
 
 /** Settles an active timer before pause, completion, or rollover clears its start timestamp. */
-export function settleTimelineBlockSeconds(block: Pick<TimedBlock, 'elapsedSeconds' | 'timerStartedAt' | 'status'>, now = Date.now()): number {
+export function settleTimelineBlockSeconds(
+  block: Pick<TimedBlock, 'elapsedSeconds' | 'timerStartedAt' | 'status'>,
+  now = Date.now()
+): number {
   return timelineBlockSeconds(block, now)
 }
 
@@ -37,14 +47,28 @@ export function calculateWorkTime(
   sessions: WorkSessionRecord[],
   filter: WorkTimeFilter = 'all',
   now = Date.now()
-): { seconds: number; blockSeconds: number; independentSessionSeconds: number; sessions: WorkSessionRecord[] } {
-  const selectedBlocks = blocks.filter((block) => filter === 'all' || (filter === 'company' ? block.isCompanyWork !== false : block.isCompanyWork === false))
+): {
+  seconds: number
+  blockSeconds: number
+  independentSessionSeconds: number
+  sessions: WorkSessionRecord[]
+} {
+  const selectedBlocks = blocks.filter(
+    (block) =>
+      filter === 'all' ||
+      (filter === 'company'
+        ? block.isCompanyWork !== false
+        : block.isCompanyWork === false)
+  )
   const seenBlocks = new Set<string>()
   let blockSeconds = 0
   for (const block of selectedBlocks) {
     if (seenBlocks.has(block.id)) continue
     seenBlocks.add(block.id)
-    blockSeconds = Math.min(Number.MAX_SAFE_INTEGER, blockSeconds + timelineBlockSeconds(block, now))
+    blockSeconds = Math.min(
+      Number.MAX_SAFE_INTEGER,
+      blockSeconds + timelineBlockSeconds(block, now)
+    )
   }
   const selectedBlockIds = new Set(selectedBlocks.map((block) => block.id))
 
@@ -57,17 +81,27 @@ export function calculateWorkTime(
     // A linked interval is represented by its timeline block only while that
     // block is in the selected date/filter range. If the task was rolled to a
     // later day, retain its earlier dated interval in the report.
-    if (session.timelineBlockId && selectedBlockIds.has(session.timelineBlockId)) continue
+    if (
+      session.timelineBlockId &&
+      selectedBlockIds.has(session.timelineBlockId)
+    )
+      continue
     if (filter === 'company' && !session.isCompanyWork) continue
     if (filter === 'freelance' && session.isCompanyWork) continue
     independentSessions.push(session)
     const hours = session.durationHours
     if (!Number.isFinite(hours) || hours <= 0) continue
-    independentSessionSeconds = Math.min(Number.MAX_SAFE_INTEGER, independentSessionSeconds + Math.round(hours * 3600))
+    independentSessionSeconds = Math.min(
+      Number.MAX_SAFE_INTEGER,
+      independentSessionSeconds + Math.round(hours * 3600)
+    )
   }
 
   return {
-    seconds: Math.min(Number.MAX_SAFE_INTEGER, blockSeconds + independentSessionSeconds),
+    seconds: Math.min(
+      Number.MAX_SAFE_INTEGER,
+      blockSeconds + independentSessionSeconds
+    ),
     blockSeconds,
     independentSessionSeconds,
     sessions: independentSessions,

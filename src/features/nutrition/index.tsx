@@ -1,22 +1,44 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  Flame,
+  LoaderCircle,
+  Plus,
+  Sparkles,
+  Trash2,
+  Utensils,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Flame, LoaderCircle, Plus, Sparkles, Trash2, Utensils } from 'lucide-react'
-import { Header } from '@/components/layout/header'
-import { HeaderActions } from '@/components/header-actions'
-import { Main } from '@/components/layout/main'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { JalaliDatePicker } from '@/components/jalali-date-picker'
-import { deleteMealLog, getMealLogs, saveMealLog, updateMealLog, type MealLog } from '@/services/db'
+import { toDateKey } from '@/lib/date-key'
+import { formatJalaliDateKey } from '@/lib/jalali'
+import {
+  deleteMealLog,
+  getMealLogs,
+  saveMealLog,
+  updateMealLog,
+  type MealLog,
+} from '@/services/db'
 import {
   deleteCardioLog,
   getCardioLogs,
   saveCardioLog,
   type CardioLog,
 } from '@/services/nutrition'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { HeaderActions } from '@/components/header-actions'
+import { JalaliDatePicker } from '@/components/jalali-date-picker'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { isAiConfigured, requestAiJson } from '@/features/ai/client'
 import {
   buildMealEstimatePrompt,
   estimateBurnedCalories,
@@ -24,9 +46,6 @@ import {
   summarizeNutrition,
   type MealEstimate,
 } from '@/features/nutrition/nutrition-utils'
-import { isAiConfigured, requestAiJson } from '@/features/ai/client'
-import { formatJalaliDateKey } from '@/lib/jalali'
-import { toDateKey } from '@/lib/date-key'
 
 const MEAL_KINDS = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 type MealKind = (typeof MEAL_KINDS)[number]
@@ -73,7 +92,10 @@ export function NutritionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only depends on the day and the translator
   }, [dayKey, t])
 
-  const summary = useMemo(() => summarizeNutrition(meals, cardio), [meals, cardio])
+  const summary = useMemo(
+    () => summarizeNutrition(meals, cardio),
+    [meals, cardio]
+  )
 
   const resetMealForm = () => {
     setDescription('')
@@ -106,7 +128,8 @@ export function NutritionPage() {
             food?: string
           }>(buildMealEstimatePrompt(description, quantity))
           const aiCalories = Number(payload.calories)
-          if (!Number.isFinite(aiCalories) || aiCalories < 0) throw new Error('invalid answer')
+          if (!Number.isFinite(aiCalories) || aiCalories < 0)
+            throw new Error('invalid answer')
           result = {
             calories: Math.round(aiCalories),
             protein: Math.round(Number(payload.protein) || 0),
@@ -139,7 +162,11 @@ export function NutritionPage() {
     setError('')
     setNotice('')
     const caloriesValue = Number(calories)
-    if (!description.trim() || !Number.isSafeInteger(caloriesValue) || caloriesValue < 0) {
+    if (
+      !description.trim() ||
+      !Number.isSafeInteger(caloriesValue) ||
+      caloriesValue < 0
+    ) {
       setError(t('nutrition.errors.invalid'))
       return
     }
@@ -170,7 +197,9 @@ export function NutritionPage() {
   const confirmMeal = async (meal: MealLog) => {
     try {
       const updated = await updateMealLog(meal.id, { caloriesConfirmed: true })
-      setMeals((all) => all.map((row) => (row.id === updated.id ? updated : row)))
+      setMeals((all) =>
+        all.map((row) => (row.id === updated.id ? updated : row))
+      )
     } catch {
       setError(t('nutrition.errors.save'))
     }
@@ -189,7 +218,11 @@ export function NutritionPage() {
     event.preventDefault()
     setError('')
     const minutesValue = Number(minutes)
-    if (!activity.trim() || !Number.isInteger(minutesValue) || minutesValue < 1) {
+    if (
+      !activity.trim() ||
+      !Number.isInteger(minutesValue) ||
+      minutesValue < 1
+    ) {
       setError(t('nutrition.errors.invalidActivity'))
       return
     }
@@ -246,38 +279,64 @@ export function NutritionPage() {
           />
         </div>
 
-        {error ? <p role='alert' className='text-sm text-destructive'>{error}</p> : null}
-        {notice ? <p role='status' className='text-sm text-muted-foreground'>{notice}</p> : null}
+        {error ? (
+          <p role='alert' className='text-sm text-destructive'>
+            {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p role='status' className='text-sm text-muted-foreground'>
+            {notice}
+          </p>
+        ) : null}
 
         <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
           <Card>
-            <CardHeader className='pb-2'><CardDescription>{t('nutrition.summary.intake')}</CardDescription></CardHeader>
-            <CardContent className='text-2xl font-semibold tabular-nums'>{summary.intake} kcal</CardContent>
+            <CardHeader className='pb-2'>
+              <CardDescription>{t('nutrition.summary.intake')}</CardDescription>
+            </CardHeader>
+            <CardContent className='text-2xl font-semibold tabular-nums'>
+              {summary.intake} kcal
+            </CardContent>
           </Card>
           <Card>
-            <CardHeader className='pb-2'><CardDescription>{t('nutrition.summary.burned')}</CardDescription></CardHeader>
+            <CardHeader className='pb-2'>
+              <CardDescription>{t('nutrition.summary.burned')}</CardDescription>
+            </CardHeader>
             <CardContent className='text-2xl font-semibold tabular-nums'>
               {summary.burned} kcal
               {summary.hasEstimatedBurn ? (
-                <span className='ms-2 text-xs font-normal text-muted-foreground'>{t('nutrition.summary.estimated')}</span>
+                <span className='ms-2 text-xs font-normal text-muted-foreground'>
+                  {t('nutrition.summary.estimated')}
+                </span>
               ) : null}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className='pb-2'><CardDescription>{t('nutrition.summary.net')}</CardDescription></CardHeader>
-            <CardContent className='text-2xl font-semibold tabular-nums'>{summary.net} kcal</CardContent>
+            <CardHeader className='pb-2'>
+              <CardDescription>{t('nutrition.summary.net')}</CardDescription>
+            </CardHeader>
+            <CardContent className='text-2xl font-semibold tabular-nums'>
+              {summary.net} kcal
+            </CardContent>
           </Card>
           <Card>
-            <CardHeader className='pb-2'><CardDescription>{t('nutrition.summary.macros')}</CardDescription></CardHeader>
+            <CardHeader className='pb-2'>
+              <CardDescription>{t('nutrition.summary.macros')}</CardDescription>
+            </CardHeader>
             <CardContent className='text-sm font-semibold tabular-nums'>
-              {t('nutrition.macros.protein')}: {summary.protein}g · {t('nutrition.macros.carbs')}: {summary.carbs}g · {t('nutrition.macros.fat')}: {summary.fat}g
+              {t('nutrition.macros.protein')}: {summary.protein}g ·{' '}
+              {t('nutrition.macros.carbs')}: {summary.carbs}g ·{' '}
+              {t('nutrition.macros.fat')}: {summary.fat}g
             </CardContent>
           </Card>
         </div>
 
         {summary.pendingEstimates > 0 ? (
           <p className='rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm'>
-            {t('nutrition.summary.pending', { count: summary.pendingEstimates })}
+            {t('nutrition.summary.pending', {
+              count: summary.pendingEstimates,
+            })}
           </p>
         ) : null}
 
@@ -291,7 +350,10 @@ export function NutritionPage() {
               <CardDescription>{t('nutrition.mealHint')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className='grid gap-3 md:grid-cols-2' onSubmit={(event) => void saveMeal(event)}>
+              <form
+                className='grid gap-3 md:grid-cols-2'
+                onSubmit={(event) => void saveMeal(event)}
+              >
                 <select
                   aria-label={t('nutrition.mealKind')}
                   className='h-9 rounded-md border bg-background px-3 text-sm'
@@ -330,12 +392,18 @@ export function NutritionPage() {
                     disabled={estimating}
                     onClick={() => void estimateCalories()}
                   >
-                    {estimating ? <LoaderCircle className='me-2 size-4 animate-spin' /> : <Sparkles className='me-2 size-4' />}
+                    {estimating ? (
+                      <LoaderCircle className='me-2 size-4 animate-spin' />
+                    ) : (
+                      <Sparkles className='me-2 size-4' />
+                    )}
                     {t('nutrition.estimate')}
                   </Button>
                   {estimate ? (
                     <Badge variant='secondary'>
-                      {estimate.source === 'ai' ? t('nutrition.source.ai') : t('nutrition.source.local')}
+                      {estimate.source === 'ai'
+                        ? t('nutrition.source.ai')
+                        : t('nutrition.source.local')}
                     </Badge>
                   ) : null}
                 </div>
@@ -373,7 +441,12 @@ export function NutritionPage() {
                 />
                 {estimate ? (
                   <label className='flex items-center gap-2 text-sm md:col-span-2'>
-                    <Checkbox checked={approved} onCheckedChange={(checked) => setApproved(checked === true)} />
+                    <Checkbox
+                      checked={approved}
+                      onCheckedChange={(checked) =>
+                        setApproved(checked === true)
+                      }
+                    />
                     {t('nutrition.approve')}
                   </label>
                 ) : null}
@@ -382,10 +455,14 @@ export function NutritionPage() {
                     <Plus className='me-2 size-4' />
                     {t('nutrition.saveMeal')}
                   </Button>
-                  <Button type='button' variant='ghost' onClick={resetMealForm}>{t('nutrition.reset')}</Button>
+                  <Button type='button' variant='ghost' onClick={resetMealForm}>
+                    {t('nutrition.reset')}
+                  </Button>
                 </div>
               </form>
-              <p className='mt-3 text-xs text-muted-foreground'>{t('nutrition.approvalHint')}</p>
+              <p className='mt-3 text-xs text-muted-foreground'>
+                {t('nutrition.approvalHint')}
+              </p>
             </CardContent>
           </Card>
 
@@ -398,7 +475,10 @@ export function NutritionPage() {
               <CardDescription>{t('nutrition.activityHint')}</CardDescription>
             </CardHeader>
             <CardContent className='space-y-4'>
-              <form className='grid gap-2 sm:grid-cols-[1fr_110px_140px_auto]' onSubmit={(event) => void addCardio(event)}>
+              <form
+                className='grid gap-2 sm:grid-cols-[1fr_110px_140px_auto]'
+                onSubmit={(event) => void addCardio(event)}
+              >
                 <Input
                   required
                   value={activity}
@@ -422,24 +502,39 @@ export function NutritionPage() {
                 />
                 <Button type='submit'>{t('nutrition.addActivity')}</Button>
               </form>
-              <p className='text-xs text-muted-foreground'>{t('nutrition.activityFormula')}</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('nutrition.activityFormula')}
+              </p>
               <div className='space-y-2'>
                 {cardio.length ? (
                   cardio.map((session) => (
-                    <div key={session.id} className='flex items-center justify-between gap-2 border-b py-2 text-sm'>
+                    <div
+                      key={session.id}
+                      className='flex items-center justify-between gap-2 border-b py-2 text-sm'
+                    >
                       <span>
-                        {session.activity} · {session.minutes} {t('nutrition.minutes')} · {session.calories} kcal
+                        {session.activity} · {session.minutes}{' '}
+                        {t('nutrition.minutes')} · {session.calories} kcal
                         {session.caloriesEstimated ? (
-                          <span className='ms-2 text-xs text-muted-foreground'>{t('nutrition.summary.estimated')}</span>
+                          <span className='ms-2 text-xs text-muted-foreground'>
+                            {t('nutrition.summary.estimated')}
+                          </span>
                         ) : null}
                       </span>
-                      <Button size='icon' variant='ghost' aria-label={t('nutrition.deleteActivity')} onClick={() => void removeCardio(session)}>
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        aria-label={t('nutrition.deleteActivity')}
+                        onClick={() => void removeCardio(session)}
+                      >
                         <Trash2 className='size-4' />
                       </Button>
                     </div>
                   ))
                 ) : (
-                  <p className='text-sm text-muted-foreground'>{t('nutrition.noActivity')}</p>
+                  <p className='text-sm text-muted-foreground'>
+                    {t('nutrition.noActivity')}
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -453,33 +548,55 @@ export function NutritionPage() {
           </CardHeader>
           <CardContent className='space-y-2'>
             {loading ? (
-              <p role='status' className='text-sm text-muted-foreground'>{t('nutrition.loading')}</p>
+              <p role='status' className='text-sm text-muted-foreground'>
+                {t('nutrition.loading')}
+              </p>
             ) : meals.length ? (
               meals.map((meal) => (
-                <div key={meal.id} className='flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm'>
+                <div
+                  key={meal.id}
+                  className='flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm'
+                >
                   <div>
                     <span className='font-medium'>{meal.description}</span>
-                    {meal.quantity ? <span className='ms-2 text-xs text-muted-foreground'>{meal.quantity}</span> : null}
+                    {meal.quantity ? (
+                      <span className='ms-2 text-xs text-muted-foreground'>
+                        {meal.quantity}
+                      </span>
+                    ) : null}
                     <span className='ms-2 text-xs text-muted-foreground'>
                       {t(`nutrition.kinds.${meal.kind}`)} · {meal.calories} kcal
                     </span>
                   </div>
                   <div className='flex items-center gap-2'>
                     {meal.caloriesConfirmed === false ? (
-                      <Button size='sm' variant='outline' onClick={() => void confirmMeal(meal)}>
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={() => void confirmMeal(meal)}
+                      >
                         {t('nutrition.confirm')}
                       </Button>
                     ) : (
-                      <Badge variant='secondary'>{t('nutrition.confirmed')}</Badge>
+                      <Badge variant='secondary'>
+                        {t('nutrition.confirmed')}
+                      </Badge>
                     )}
-                    <Button size='icon' variant='ghost' aria-label={t('nutrition.deleteMeal')} onClick={() => void removeMeal(meal)}>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      aria-label={t('nutrition.deleteMeal')}
+                      onClick={() => void removeMeal(meal)}
+                    >
                       <Trash2 className='size-4' />
                     </Button>
                   </div>
                 </div>
               ))
             ) : (
-              <p className='text-sm text-muted-foreground'>{t('nutrition.noMeals')}</p>
+              <p className='text-sm text-muted-foreground'>
+                {t('nutrition.noMeals')}
+              </p>
             )}
           </CardContent>
         </Card>
